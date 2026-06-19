@@ -100,7 +100,7 @@ def show_register():
         change_page("login")
 
 # ==========================================
-# 2. 仕事一覧画面 (★応募済みを非表示にするように修正！)
+# 2. 仕事一覧画面
 # ==========================================
 def show_job_list():
     with st.sidebar:
@@ -118,10 +118,9 @@ def show_job_list():
 
     st.title("🟢 現在の募集一覧")
     
-    # 自分の応募履歴を取得
     user_history = st.session_state.user.get("history", [])
     
-    # ★許可された仕事の中から「自分がまだ応募していない仕事」だけを絞り込む
+    # 自分がまだ応募していない仕事だけを絞り込む
     available_jobs = {
         jid: j for jid, j in db["jobs"].items() 
         if j.get("status") == "approved" and jid not in user_history
@@ -134,14 +133,16 @@ def show_job_list():
             with st.container(border=True):
                 st.subheader(job["title"])
                 st.write(f"💰 **謝礼:** {job['pay']} ⏰ **日時:** {job['time']}")
-                st.write(f"📍 **場所:** {job['loc']}")
+                # 場所の種類も合わせて一覧に表示
+                loc_type_label = f"[{job.get('loc_type', 'その他')}] " if job.get('loc_type') else ""
+                st.write(f"📍 **場所:** {loc_type_label}{job['loc']}")
                 
                 if st.button("詳しく見て応募する", key=f"det_{jid}", type="primary"):
                     st.session_state.current_job_id = jid
                     change_page("job_detail")
 
 # ==========================================
-# 3. 仕事詳細画面
+# 3. 仕事詳細画面 (★場所の種類もきれいに表示)
 # ==========================================
 def show_job_detail():
     jid = st.session_state.current_job_id
@@ -159,8 +160,11 @@ def show_job_detail():
         st.write(f"**⏰ 日時:** {job['time']}")
         st.write(f"**💰 給与:** {job['pay']}")
         st.write(f"**🎒 持ち物:** {job['items']}")
-        st.write(f"**📍 勤務地:** {job['loc']}")
+        if job.get('loc_type'):
+            st.write(f"**🏢 場所の種類:** {job['loc_type']}")
+        st.write(f"**📍 詳しい勤務地:** {job['loc']}")
         
+        # Googleマップでピンポイントに住所を検索できるリンク
         map_url = f"https://www.google.com/maps/search/?api=1&query={requests.utils.quote(job['loc'])}"
         st.markdown(f"🗺️ [Googleマップで詳しい場所を開く（別タブ）]({map_url})")
     
@@ -178,7 +182,7 @@ def show_job_detail():
         change_page("job_list")
 
 # ==========================================
-# 4. お願い投稿画面
+# 4. お願い投稿画面 (★場所の入力を超詳細にアップデート！)
 # ==========================================
 def show_post_job():
     st.title("➕ お願いを投稿")
@@ -200,22 +204,27 @@ def show_post_job():
     else:
         pay = pay_sel
     
+    # 📍 場所の入力エリアを詳細化
     st.write("**📍 勤務地・集まる場所**")
     user_city = st.session_state.user.get('city', '')
     default_idx = akita_cities.index(user_city) if user_city in akita_cities else 0
     city = st.selectbox("市町村", akita_cities, index=default_idx)
     
-    loc_options = ["秋田駅周辺", "市役所周辺", "自宅（採用後に連絡）", "畑・農地", "その他（下に入力）"]
-    loc_sel = st.selectbox("詳しい場所の目安", loc_options)
-    if loc_sel == "その他（下に入力）":
-        loc_detail = st.text_input("詳しい町名や施設名・住所を入力")
-    else:
-        loc_detail = loc_sel
+    # 新機能: 場所のジャンルを選べるように
+    loc_type_options = ["個人宅（庭や屋内など）", "農地・畑・果樹園・山林", "店舗・商業施設・飲食店", "オフィス・事務所・工場", "公共施設（駅・公園・役所など）", "その他"]
+    loc_type = st.selectbox("場所の種類・ジャンル", loc_type_options)
+    
+    # 具体的な住所や目印の入力（プレースホルダーで入力例をガイド）
+    loc_detail = st.text_input(
+        "詳しい住所・町名・建物名", 
+        placeholder="例: 山王1丁目1-1、アトリオン、〇〇地区のファミリーマート付近、など"
+    )
         
     items = st.text_input("🎒 持ち物や注意点 (例: 軍手、長靴)")
     
     if st.button("確認申請を送る", type="primary", use_container_width=True):
         if title and pay and loc_detail:
+            # 市町村と詳しい場所を綺麗に繋げて検索しやすい住所を作る
             full_loc = f"秋田県{city} {loc_detail}".strip()
             
             date_str = job_date.strftime("%Y年%m月%d日")
@@ -225,8 +234,9 @@ def show_post_job():
             
             new_jid = str(uuid.uuid4())
             
+            # loc_type も一緒にデータベースに保存する
             db["jobs"][new_jid] = {
-                "title": title, "time": datetime_str, "pay": pay, "loc": full_loc,
+                "title": title, "time": datetime_str, "pay": pay, "loc": full_loc, "loc_type": loc_type,
                 "items": items, "status": "pending", "posted_by": st.session_state.user.get("name", "名無し")
             }
             save_data(db)
@@ -234,7 +244,7 @@ def show_post_job():
             st.success("管理者に申請しました！許可されると一覧に表示されます。")
             change_page("job_list")
         else:
-            st.warning("未入力の項目があります。")
+            st.warning("「詳しい住所・町名・建物名」など、未入力の項目があります。")
         
     if st.button("やめる（戻る）", use_container_width=True):
         change_page("job_list")
