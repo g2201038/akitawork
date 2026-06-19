@@ -11,7 +11,7 @@ import uuid
 # ★ データベース設定（Firebase）
 
 # ==========================================
- 
+
 FIREBASE_URL = "https://akita-work-default-rtdb.firebaseio.com/.json"
  
 # --- データの読み書き関数 ---
@@ -176,7 +176,7 @@ def show_job_list():
 
         st.subheader(f"👤 {st.session_state.user.get('name', 'ゲスト')} さん")
 
-        # ★エラー対策：古いアカウントの「市町村データ」がなくても落ちないようにする
+        # ★エラー対策：古いアカウントの「市町村データ」がなくても「未設定」にして落とさない
 
         user_city = st.session_state.user.get('city', '未設定')
 
@@ -260,7 +260,7 @@ def show_job_detail():
 
         st.write(f"**⏰ 日時:** {job['time']}")
 
-        st.write(f"**💰 給与:** {job['pay']}")
+        st.write(f"**💰 给料:** {job['pay']}")
 
         st.write(f"**🎒 持ち物:** {job['items']}")
 
