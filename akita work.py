@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import json
 import uuid
-import datetime  # ★日付や時間を扱うための部品を追加
+import datetime  # 日付や時間を扱うための部品
 
 # ==========================================
 # ★ データベース設定（Firebase）
@@ -138,7 +138,7 @@ def show_job_list():
                         change_page("job_detail")
 
 # ==========================================
-# 3. 仕事詳細画面
+# 3. 仕事詳細画面 (★Googleマップ連携を強力に修正！)
 # ==========================================
 def show_job_detail():
     jid = st.session_state.current_job_id
@@ -158,8 +158,9 @@ def show_job_detail():
         st.write(f"**🎒 持ち物:** {job['items']}")
         st.write(f"**📍 勤務地:** {job['loc']}")
         
-        map_url = f"https://www.google.com/maps/search/?api=1&query={job['loc']}"
-        st.markdown(f"[🗺 Googleマップで場所を確認する]({map_url})")
+        # ★本物のGoogleマップでピンポイントに住所を検索できるURLに修正
+        map_url = f"https://www.google.com/maps/search/?api=1&query={requests.utils.quote(job['loc'])}"
+        st.markdown(f"🗺️ [Googleマップで詳しい場所を開く（別タブ）]({map_url})")
     
     if st.button("✨ この仕事に応募する", type="primary", use_container_width=True):
         user_history = st.session_state.user.get("history", [])
@@ -175,31 +176,28 @@ def show_job_detail():
         change_page("job_list")
 
 # ==========================================
-# 4. お願い投稿画面 (カレンダー・時間・細かい給与アップデート)
+# 4. お願い投稿画面
 # ==========================================
 def show_post_job():
     st.title("➕ お願いを投稿")
     title = st.text_input("困りごと・内容 (例: 庭の草むしり)")
     
-    # 📅 カレンダーと時間の選択
-    st.write("**📅 仕事の日と時間**")
+    st.write("**📅 工作の日と時間**")
     job_date = st.date_input("仕事の日", value=datetime.date.today())
     
     col1, col2 = st.columns(2)
     start_time = col1.time_input("始まりの時間", value=datetime.time(9, 0))
     end_time = col2.time_input("終わりの時間", value=datetime.time(12, 0))
     
-    # 💰 謝礼・給与の選択（500円刻みで細かく）
     st.write("**💰 お礼・給与**")
     pay_options = [f"{i:,.0f}円" for i in range(500, 20500, 500)] + ["その他 (手入力)"]
-    pay_sel = st.selectbox("金額を選ぶ (500円刻み)", pay_options, index=3) # デフォルトは 2,000円
+    pay_sel = st.selectbox("金額を選ぶ (500円刻み)", pay_options, index=3)
     
-    if pay_sel == "その他 (手入力)":
+    if pay_sel == "undefined" or pay_sel == "その他 (手入力)":
         pay = st.text_input("金額を入力 (例: 25,000円)")
     else:
         pay = pay_sel
     
-    # 📍 場所の選択
     st.write("**📍 勤務地・集まる場所**")
     user_city = st.session_state.user.get('city', '')
     default_idx = akita_cities.index(user_city) if user_city in akita_cities else 0
@@ -208,7 +206,7 @@ def show_post_job():
     loc_options = ["秋田駅周辺", "市役所周辺", "自宅（採用後に連絡）", "畑・農地", "その他（下に入力）"]
     loc_sel = st.selectbox("詳しい場所の目安", loc_options)
     if loc_sel == "その他（下に入力）":
-        loc_detail = st.text_input("詳しい町名や施設名を入力")
+        loc_detail = st.text_input("詳しい町名や施設名・住所を入力")
     else:
         loc_detail = loc_sel
         
@@ -216,9 +214,9 @@ def show_post_job():
     
     if st.button("確認申請を送る", type="primary", use_container_width=True):
         if title and pay and loc_detail:
-            full_loc = f"{city} {loc_detail}".strip()
+            # 市町村と詳しい場所を繋げて、Googleマップで検索しやすい住所を作る
+            full_loc = f"秋田県{city} {loc_detail}".strip()
             
-            # 選んだ日付と時間を1つの文字列にまとめる
             date_str = job_date.strftime("%Y年%m月%d日")
             s_time_str = start_time.strftime("%H:%M")
             e_time_str = end_time.strftime("%H:%M")
