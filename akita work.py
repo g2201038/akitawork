@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import json
 import uuid
+import datetime  # ★日付や時間を扱うための部品を追加
 
 # ==========================================
 # ★ データベース設定（Firebase）
@@ -174,45 +175,36 @@ def show_job_detail():
         change_page("job_list")
 
 # ==========================================
-# 4. お願い投稿画面 (選択式にアップデート！)
+# 4. お願い投稿画面 (カレンダー・時間・細かい給与アップデート)
 # ==========================================
 def show_post_job():
     st.title("➕ お願いを投稿")
     title = st.text_input("困りごと・内容 (例: 庭の草むしり)")
     
-    # 日時の選択
-    st.write("**⏰ 希望日時**")
-    col1, col2, col3 = st.columns(3)
-    month = col1.selectbox("月", list(range(1, 13)))
-    day = col2.selectbox("日", list(range(1, 32)))
+    # 📅 カレンダーと時間の選択
+    st.write("**📅 仕事の日と時間**")
+    job_date = st.date_input("仕事の日", value=datetime.date.today())
     
-    # よく使う時間帯のリスト
-    time_options = [
-        "09:00〜12:00 (午前中)", "13:00〜17:00 (午後)", "09:00〜17:00 (終日)",
-        "06:00〜09:00 (早朝)", "18:00〜21:00 (夜間)", "その他 (手入力)"
-    ]
-    time_sel = col3.selectbox("時間帯", time_options)
-    if time_sel == "その他 (手入力)":
-        time_str = st.text_input("時間を入力 (例: 10:00〜15:00)")
-    else:
-        time_str = time_sel.split(" ")[0] # 「09:00〜12:00」の部分だけ取得
+    col1, col2 = st.columns(2)
+    start_time = col1.time_input("始まりの時間", value=datetime.time(9, 0))
+    end_time = col2.time_input("終わりの時間", value=datetime.time(12, 0))
     
-    # 謝礼・給与の選択
+    # 💰 謝礼・給与の選択（500円刻みで細かく）
     st.write("**💰 お礼・給与**")
-    pay_options = [f"{i:,.0f}円" for i in range(1000, 11000, 1000)] + ["その他 (手入力)"]
-    pay_sel = st.selectbox("金額を選ぶ", pay_options)
+    pay_options = [f"{i:,.0f}円" for i in range(500, 20500, 500)] + ["その他 (手入力)"]
+    pay_sel = st.selectbox("金額を選ぶ (500円刻み)", pay_options, index=3) # デフォルトは 2,000円
+    
     if pay_sel == "その他 (手入力)":
-        pay = st.text_input("金額を入力 (例: 2,500円)")
+        pay = st.text_input("金額を入力 (例: 25,000円)")
     else:
         pay = pay_sel
     
-    # 場所の選択
+    # 📍 場所の選択
     st.write("**📍 勤務地・集まる場所**")
     user_city = st.session_state.user.get('city', '')
     default_idx = akita_cities.index(user_city) if user_city in akita_cities else 0
     city = st.selectbox("市町村", akita_cities, index=default_idx)
     
-    # 詳しい場所の選択肢
     loc_options = ["秋田駅周辺", "市役所周辺", "自宅（採用後に連絡）", "畑・農地", "その他（下に入力）"]
     loc_sel = st.selectbox("詳しい場所の目安", loc_options)
     if loc_sel == "その他（下に入力）":
@@ -223,9 +215,14 @@ def show_post_job():
     items = st.text_input("🎒 持ち物や注意点 (例: 軍手、長靴)")
     
     if st.button("確認申請を送る", type="primary", use_container_width=True):
-        if title and pay and time_str and loc_detail:
+        if title and pay and loc_detail:
             full_loc = f"{city} {loc_detail}".strip()
-            datetime_str = f"{month}月{day}日 {time_str}"
+            
+            # 選んだ日付と時間を1つの文字列にまとめる
+            date_str = job_date.strftime("%Y年%m月%d日")
+            s_time_str = start_time.strftime("%H:%M")
+            e_time_str = end_time.strftime("%H:%M")
+            datetime_str = f"{date_str} {s_time_str}〜{e_time_str}"
             
             new_jid = str(uuid.uuid4())
             
