@@ -11,7 +11,7 @@ import uuid
 # ★ データベース設定（Firebase）
 
 # ==========================================
-
+ 
 FIREBASE_URL = "https://akita-work-default-rtdb.firebaseio.com/.json"
  
 # --- データの読み書き関数 ---
