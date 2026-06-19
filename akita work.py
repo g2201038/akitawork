@@ -100,7 +100,7 @@ def show_register():
         change_page("login")
 
 # ==========================================
-# 2. 仕事一覧画面
+# 2. 仕事一覧画面 (★応募済みを非表示にするように修正！)
 # ==========================================
 def show_job_list():
     with st.sidebar:
@@ -118,27 +118,30 @@ def show_job_list():
 
     st.title("🟢 現在の募集一覧")
     
-    approved_jobs = {jid: j for jid, j in db["jobs"].items() if j.get("status") == "approved"}
+    # 自分の応募履歴を取得
+    user_history = st.session_state.user.get("history", [])
     
-    if not approved_jobs:
-        st.info("現在募集中の求人はありません。左上の「＞」メニューから募集を投稿できます！")
+    # ★許可された仕事の中から「自分がまだ応募していない仕事」だけを絞り込む
+    available_jobs = {
+        jid: j for jid, j in db["jobs"].items() 
+        if j.get("status") == "approved" and jid not in user_history
+    }
+    
+    if not available_jobs:
+        st.info("現在募集中の求人はありません（すべて応募済みか、募集がありません）。左上の「＞」メニューから募集を投稿できます！")
     else:
-        for jid, job in reversed(list(approved_jobs.items())):
+        for jid, job in reversed(list(available_jobs.items())):
             with st.container(border=True):
                 st.subheader(job["title"])
                 st.write(f"💰 **謝礼:** {job['pay']} ⏰ **日時:** {job['time']}")
                 st.write(f"📍 **場所:** {job['loc']}")
                 
-                user_history = st.session_state.user.get("history", [])
-                if jid in user_history:
-                    st.button("✅ 応募済み", disabled=True, key=f"app_{jid}")
-                else:
-                    if st.button("詳しく見て応募する", key=f"det_{jid}", type="primary"):
-                        st.session_state.current_job_id = jid
-                        change_page("job_detail")
+                if st.button("詳しく見て応募する", key=f"det_{jid}", type="primary"):
+                    st.session_state.current_job_id = jid
+                    change_page("job_detail")
 
 # ==========================================
-# 3. 仕事詳細画面 (★Googleマップ連携を強力に修正！)
+# 3. 仕事詳細画面
 # ==========================================
 def show_job_detail():
     jid = st.session_state.current_job_id
@@ -158,7 +161,6 @@ def show_job_detail():
         st.write(f"**🎒 持ち物:** {job['items']}")
         st.write(f"**📍 勤務地:** {job['loc']}")
         
-        # ★本物のGoogleマップでピンポイントに住所を検索できるURLに修正
         map_url = f"https://www.google.com/maps/search/?api=1&query={requests.utils.quote(job['loc'])}"
         st.markdown(f"🗺️ [Googleマップで詳しい場所を開く（別タブ）]({map_url})")
     
@@ -169,7 +171,7 @@ def show_job_detail():
             st.session_state.user["history"] = user_history
             db["users"][st.session_state.phone]["history"] = user_history
             save_data(db)
-            st.success("応募しました！")
+            st.success("応募しました！募集一覧から非表示になります。")
             change_page("job_list")
         
     if st.button("一覧に戻る", use_container_width=True):
@@ -182,7 +184,7 @@ def show_post_job():
     st.title("➕ お願いを投稿")
     title = st.text_input("困りごと・内容 (例: 庭の草むしり)")
     
-    st.write("**📅 工作の日と時間**")
+    st.write("**📅 仕事の日と時間**")
     job_date = st.date_input("仕事の日", value=datetime.date.today())
     
     col1, col2 = st.columns(2)
@@ -193,7 +195,7 @@ def show_post_job():
     pay_options = [f"{i:,.0f}円" for i in range(500, 20500, 500)] + ["その他 (手入力)"]
     pay_sel = st.selectbox("金額を選ぶ (500円刻み)", pay_options, index=3)
     
-    if pay_sel == "undefined" or pay_sel == "その他 (手入力)":
+    if pay_sel == "その他 (手入力)":
         pay = st.text_input("金額を入力 (例: 25,000円)")
     else:
         pay = pay_sel
@@ -214,7 +216,6 @@ def show_post_job():
     
     if st.button("確認申請を送る", type="primary", use_container_width=True):
         if title and pay and loc_detail:
-            # 市町村と詳しい場所を繋げて、Googleマップで検索しやすい住所を作る
             full_loc = f"秋田県{city} {loc_detail}".strip()
             
             date_str = job_date.strftime("%Y年%m月%d日")
