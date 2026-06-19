@@ -176,7 +176,11 @@ def show_job_list():
 
         st.subheader(f"👤 {st.session_state.user['name']} さん")
 
-        st.write(f"📍 {st.session_state.user['city']}")
+        # ★修正箇所: cityがない古いアカウントへの対策（「未設定」と表示する）
+
+        user_city = st.session_state.user.get('city', '未設定')
+
+        st.write(f"📍 {user_city}")
 
         st.divider()
 
@@ -196,8 +200,6 @@ def show_job_list():
  
     st.title("🟢 現在の募集一覧")
 
-    # 承認済みの仕事だけを集める
-
     approved_jobs = {jid: j for jid, j in db["jobs"].items() if j.get("status") == "approved"}
 
     if not approved_jobs:
@@ -205,8 +207,6 @@ def show_job_list():
         st.info("現在募集中の求人はありません。左上の「＞」メニューから募集を投稿できます！")
 
     else:
-
-        # 新しい順に表示
 
         for jid, job in reversed(list(approved_jobs.items())):
 
@@ -217,8 +217,6 @@ def show_job_list():
                 st.write(f"💰 **謝礼:** {job['pay']} ⏰ **日時:** {job['time']}")
 
                 st.write(f"📍 **場所:** {job['loc']}")
-
-                # 応募済みかどうかのチェック
 
                 user_history = st.session_state.user.get("history", [])
 
@@ -316,9 +314,11 @@ def show_post_job():
 
     pay = st.text_input("お礼・給与 (例: 2,000円)")
 
-    # ユーザーの登録市町村を初期値にする
+    # ★修正箇所: cityがない古いアカウントへの対策
 
-    default_idx = akita_cities.index(st.session_state.user['city']) if st.session_state.user['city'] in akita_cities else 0
+    user_city = st.session_state.user.get('city', '')
+
+    default_idx = akita_cities.index(user_city) if user_city in akita_cities else 0
 
     city = st.selectbox("集まる場所（市町村）", akita_cities, index=default_idx)
 
@@ -333,8 +333,6 @@ def show_post_job():
             full_loc = f"{city} {loc_detail}".strip()
 
             datetime_str = f"{month}月{day}日 {time_str}"
-
-            # 新しい仕事のIDを自動作成
 
             new_jid = str(uuid.uuid4())
 
@@ -472,7 +470,7 @@ def show_admin_users():
 
         with st.container(border=True):
 
-            st.write(f"**{u.get('name', '名無し')}** さん (📞 {phone}) - {u.get('city', '不明')}")
+            st.write(f"**{u.get('name', '名無し')}** さん (📞 {phone}) - {u.get('city', '未設定')}")
 
             if st.button("🗑 アカウント削除", key=f"del_user_{phone}", type="primary"):
 
