@@ -174,9 +174,9 @@ def show_job_list():
 
     with st.sidebar:
 
-        st.subheader(f"👤 {st.session_state.user['name']} さん")
+        st.subheader(f"👤 {st.session_state.user.get('name', 'ゲスト')} さん")
 
-        # ★修正箇所: cityがない古いアカウントへの対策（「未設定」と表示する）
+        # ★エラー対策：古いアカウントの「市町村データ」がなくても落ちないようにする
 
         user_city = st.session_state.user.get('city', '未設定')
 
@@ -314,7 +314,7 @@ def show_post_job():
 
     pay = st.text_input("お礼・給与 (例: 2,000円)")
 
-    # ★修正箇所: cityがない古いアカウントへの対策
+    # ★エラー対策：古いアカウントの「市町村データ」がなくても落ちないようにする
 
     user_city = st.session_state.user.get('city', '')
 
@@ -340,7 +340,7 @@ def show_post_job():
 
                 "title": title, "time": datetime_str, "pay": pay, "loc": full_loc,
 
-                "items": items, "status": "pending", "posted_by": st.session_state.user["name"]
+                "items": items, "status": "pending", "posted_by": st.session_state.user.get("name", "名無し")
 
             }
 
