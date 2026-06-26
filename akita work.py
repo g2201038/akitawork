@@ -104,7 +104,7 @@ def show_register():
         change_page("login")
 
 # ==========================================
-# 2. 仕事一覧画面
+# 2. 仕事一覧画面 (★締め切り判定を追加)
 # ==========================================
 def show_job_list():
     with st.sidebar:
@@ -128,13 +128,27 @@ def show_job_list():
     available_jobs = {}
     for jid, j in db["jobs"].items():
         if j.get("status") == "approved" and jid not in user_history:
+            skip_job = False
+            
+            # ① 応募の締め切りを過ぎていないかチェック
+            if "deadline_at" in j:
+                try:
+                    deadline_dt = datetime.datetime.strptime(j["deadline_at"], "%Y-%m-%d %H:%M:%S")
+                    if now >= deadline_dt:
+                        skip_job = True
+                except: pass
+            
+            # ② 仕事の終了時間を過ぎていないかチェック
             if "expire_at" in j:
                 try:
                     expire_dt = datetime.datetime.strptime(j["expire_at"], "%Y-%m-%d %H:%M:%S")
                     if now >= expire_dt:
-                        continue
-                except:
-                    pass
+                        skip_job = True
+                except: pass
+            
+            if skip_job:
+                continue
+                
             available_jobs[jid] = j
     
     if not available_jobs:
@@ -143,7 +157,17 @@ def show_job_list():
         for jid, job in reversed(list(available_jobs.items())):
             with st.container(border=True):
                 st.subheader(job["title"])
-                st.write(f"💰 **謝礼:** {job['pay']} ⏰ **日時:** {job['time']}")
+                
+                # 締め切り時間の表示用フォーマット
+                deadline_str = "未設定"
+                if "deadline_at" in job:
+                    try:
+                        dt = datetime.datetime.strptime(job["deadline_at"], "%Y-%m-%d %H:%M:%S")
+                        deadline_str = dt.strftime("%Y年%m月%d日 %H:%M")
+                    except: pass
+                
+                st.write(f"💰 **謝礼:** {job['pay']} ⏳ **締切:** {deadline_str}")
+                st.write(f"⏰ **仕事日時:** {job['time']}")
                 loc_type_label = f"[{job.get('loc_type', 'その他')}] " if job.get('loc_type') else ""
                 st.write(f"📍 **場所:** {loc_type_label}{job['loc']}")
                 
@@ -152,7 +176,7 @@ def show_job_list():
                     change_page("job_detail")
 
 # ==========================================
-# 3. 仕事詳細画面 (★応募フォームをさらに詳細化！)
+# 3. 仕事詳細画面
 # ==========================================
 def show_job_detail():
     jid = st.session_state.current_job_id
@@ -167,7 +191,16 @@ def show_job_detail():
     
     with st.container(border=True):
         st.subheader(job["title"])
-        st.write(f"**⏰ 日時:** {job['time']}")
+        
+        deadline_str = "未設定"
+        if "deadline_at" in job:
+            try:
+                dt = datetime.datetime.strptime(job["deadline_at"], "%Y-%m-%d %H:%M:%S")
+                deadline_str = dt.strftime("%Y年%m月%d日 %H:%M")
+            except: pass
+            
+        st.error(f"**⏳ 応募締切:** {deadline_str}")
+        st.write(f"**⏰ 仕事日時:** {job['time']}")
         st.write(f"**💰 給与:** {job['pay']}")
         st.write(f"**🎒 持ち物:** {job['items']}")
         if job.get('loc_type'):
@@ -181,7 +214,6 @@ def show_job_detail():
     st.subheader("📝 応募フォーム（個人情報の入力）")
     st.write("このお仕事に応募するため、以下の項目を入力してください。")
     
-    # 📝 入力項目を増やす
     col1, col2 = st.columns(2)
     app_age = col1.number_input("年齢", min_value=15, max_value=100, value=20, step=1)
     app_gender = col2.selectbox("性別", ["男性", "女性", "その他", "回答しない"])
@@ -195,7 +227,20 @@ def show_job_detail():
     app_message = st.text_area("自己PR・管理者へのメッセージ", placeholder="例: 体力には自信があります！/ 土日いつでも動けます。よろしくお願いいたします。")
     
     if st.button("✨ この仕事に応募する", type="primary", use_container_width=True):
-        if not app_message:
+        now = get_japan_now()
+        
+        # 開きっぱなしにしていて締め切りを過ぎてしまった場合のブロック処理
+        is_too_late = False
+        if "deadline_at" in job:
+            try:
+                deadline_dt = datetime.datetime.strptime(job["deadline_at"], "%Y-%m-%d %H:%M:%S")
+                if now >= deadline_dt:
+                    is_too_late = True
+            except: pass
+            
+        if is_too_late:
+            st.error("申し訳ありません、このお仕事は応募締め切り時間を過ぎてしまいました。")
+        elif not app_message:
             st.warning("「自己PR・管理者へのメッセージ」を入力してください。")
         else:
             user_history = st.session_state.user.get("history", [])
@@ -207,8 +252,7 @@ def show_job_detail():
                 if "applicants" not in job or job["applicants"] is None:
                     job["applicants"] = {}
                 
-                now_str = get_japan_now().strftime("%Y年%m月%d日 %H:%M")
-                # ★追加した詳しい情報をデータベースに保存
+                now_str = now.strftime("%Y年%m月%d日 %H:%M")
                 job["applicants"][st.session_state.phone] = {
                     "name": st.session_state.user.get("name", "名無し"),
                     "age": app_age,
@@ -229,7 +273,7 @@ def show_job_detail():
         change_page("job_list")
 
 # ==========================================
-# 4. お願い投稿画面
+# 4. お願い投稿画面 (★応募締め切りの設定を追加)
 # ==========================================
 def show_post_job():
     st.title("➕ お願いを投稿")
@@ -242,6 +286,15 @@ def show_post_job():
     col1, col2 = st.columns(2)
     start_time = col1.time_input("始まりの時間", value=datetime.time(9, 0))
     end_time = col2.time_input("終わりの時間", value=datetime.time(12, 0))
+    
+    st.write("---")
+    st.write("**⏳ 応募の締め切り**")
+    st.write("※この時間を過ぎると、ユーザーの募集一覧から自動で見えなくなります。")
+    col3, col4 = st.columns(2)
+    # 初期値は前日の夜などに設定する人が多いですが、ここでは仕事日と同じ日にしておきます
+    deadline_date = col3.date_input("締め切りの日", value=japan_today)
+    deadline_time = col4.time_input("締め切りの時間", value=datetime.time(23, 59))
+    st.write("---")
     
     st.write("**💰 お礼・給与**")
     pay_options = [f"{i:,.0f}円" for i in range(500, 20500, 500)] + ["その他 (手入力)"]
@@ -273,15 +326,27 @@ def show_post_job():
             e_time_str = end_time.strftime("%H:%M")
             datetime_str = f"{date_str} {s_time_str}〜{e_time_str}"
             
+            # 仕事の終了時間（これまでの非表示基準）
             expire_datetime = datetime.datetime.combine(job_date, end_time)
             expire_str = expire_datetime.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # ★ 応募の締め切り時間（新しい非表示基準）
+            deadline_datetime = datetime.datetime.combine(deadline_date, deadline_time)
+            deadline_str = deadline_datetime.strftime("%Y-%m-%d %H:%M:%S")
             
             new_jid = str(uuid.uuid4())
             
             db["jobs"][new_jid] = {
-                "title": title, "time": datetime_str, "pay": pay, "loc": full_loc, "loc_type": loc_type,
-                "items": items, "status": "pending", "posted_by": st.session_state.user.get("name", "名無し"),
-                "expire_at": expire_str
+                "title": title, 
+                "time": datetime_str, 
+                "pay": pay, 
+                "loc": full_loc, 
+                "loc_type": loc_type,
+                "items": items, 
+                "status": "pending", 
+                "posted_by": st.session_state.user.get("name", "名無し"),
+                "expire_at": expire_str,
+                "deadline_at": deadline_str  # ★ データベースに締め切りを保存
             }
             save_data(db)
             
@@ -314,7 +379,7 @@ def show_history():
         change_page("job_list")
 
 # ==========================================
-# 6. 管理者画面 (★応募者の詳しい情報を表示！)
+# 6. 管理者画面
 # ==========================================
 def show_admin_dashboard():
     with st.sidebar:
@@ -348,26 +413,44 @@ def show_admin_dashboard():
     for jid, job in approved_jobs.items():
         with st.container(border=True):
             is_expired = False
+            is_deadline_passed = False
+            
             if "expire_at" in job:
                 try:
                     expire_dt = datetime.datetime.strptime(job["expire_at"], "%Y-%m-%d %H:%M:%S")
                     if now >= expire_dt:
                         is_expired = True
-                except:
-                    pass
+                except: pass
+                
+            if "deadline_at" in job:
+                try:
+                    deadline_dt = datetime.datetime.strptime(job["deadline_at"], "%Y-%m-%d %H:%M:%S")
+                    if now >= deadline_dt:
+                        is_deadline_passed = True
+                except: pass
             
             if is_expired:
-                st.error("⏰ 【募集期限切れ・自動非表示中】")
+                st.error("⏰ 【仕事終了・自動非表示中】")
+            elif is_deadline_passed:
+                st.warning("⏳ 【応募締め切り終了・自動非表示中】")
             
             st.markdown(f"### 💼 {job['title']}")
-            st.write(f"⏰ **日時:** {job['time']} / 📍 **場所:** {job['loc']}")
+            
+            deadline_str = "未設定"
+            if "deadline_at" in job:
+                try:
+                    dt = datetime.datetime.strptime(job["deadline_at"], "%Y-%m-%d %H:%M:%S")
+                    deadline_str = dt.strftime("%Y年%m月%d日 %H:%M")
+                except: pass
+                
+            st.write(f"⏳ **締切:** {deadline_str} / ⏰ **日時:** {job['time']}")
+            st.write(f"📍 **場所:** {job['loc']}")
             
             applicants = job.get("applicants", {})
             if applicants:
                 st.write("👥 **この案件への応募者情報:**")
                 for phone, app in applicants.items():
                     with st.container(border=True):
-                        # ★ 管理者画面で詳しく表示するように変更
                         st.write(f"👤 **{app['name']}** さん （{app['gender']} / {app['age']}歳 / {app.get('occupation', '不明')}）")
                         st.write(f"📞 **電話番号:** {phone}")
                         
