@@ -173,7 +173,7 @@ def show_job_list():
                     change_page("job_detail")
 
 # ==========================================
-# 3. 仕事詳細画面
+# 3. 仕事詳細画面 (★応募フォームをさらに詳細化)
 # ==========================================
 def show_job_detail():
     jid = st.session_state.current_job_id
@@ -211,6 +211,11 @@ def show_job_detail():
     st.subheader("📝 応募フォーム（個人情報の入力）")
     st.write("このお仕事に応募するため、以下の項目を入力してください。")
     
+    # ★ 詳細化された入力フォーム
+    col_n1, col_n2 = st.columns(2)
+    app_name_kana = col_n1.text_input("氏名（ふりがな）", placeholder="例: あきた たろう")
+    app_address = col_n2.text_input("詳しい住所（番地・建物名）", placeholder="例: 山王1丁目1-1 〇〇ハイツ101")
+    
     col1, col2 = st.columns(2)
     app_age = col1.number_input("年齢", min_value=15, max_value=100, value=20, step=1)
     app_gender = col2.selectbox("性別", ["男性", "女性", "その他", "回答しない"])
@@ -219,9 +224,12 @@ def show_job_detail():
     app_occupation = col3.selectbox("現在のご職業", ["会社員", "自営業", "学生", "主婦・主夫", "フリーター", "無職", "その他"])
     app_transport = col4.selectbox("現地までの交通手段", ["自家用車（駐車場希望）", "公共交通機関（バス・電車）", "徒歩・自転車", "家族等の送迎", "その他"])
     
-    app_license = st.checkbox("🚗 普通自動車免許あり")
+    col5, col6 = st.columns(2)
+    app_license = col5.checkbox("🚗 普通自動車免許あり")
+    app_exp = col6.selectbox("🌾 農業・屋外作業の経験", ["未経験", "少しある（家庭菜園・手伝い等）", "経験豊富（農家・業務経験あり）"])
     
-    app_message = st.text_area("自己PR・管理者へのメッセージ", placeholder="例: 体力には自信があります！/ 土日いつでも動けます。よろしくお願いいたします。")
+    app_health = st.text_input("🏥 健康状態・アレルギー等（配慮が必要な場合）", placeholder="例: 特になし / 腰痛持ちのため重労働は厳しいです / 蜂アレルギーあり")
+    app_message = st.text_area("💬 自己PR・管理者へのメッセージ", placeholder="例: 体力には自信があります！/ 土日いつでも動けます。よろしくお願いいたします。")
     
     if st.button("✨ この仕事に応募する", type="primary", use_container_width=True):
         now = get_japan_now()
@@ -249,13 +257,19 @@ def show_job_detail():
                     job["applicants"] = {}
                 
                 now_str = now.strftime("%Y年%m月%d日 %H:%M")
+                
+                # ★ データベースにより詳しい情報を保存
                 job["applicants"][st.session_state.phone] = {
                     "name": st.session_state.user.get("name", "名無し"),
+                    "name_kana": app_name_kana,
+                    "address": app_address,
                     "age": app_age,
                     "gender": app_gender,
                     "occupation": app_occupation,
                     "transport": app_transport,
                     "has_license": app_license,
+                    "experience": app_exp,
+                    "health": app_health,
                     "message": app_message,
                     "applied_at": now_str
                 }
@@ -269,7 +283,7 @@ def show_job_detail():
         change_page("job_list")
 
 # ==========================================
-# 4. お願い投稿画面 (★時間の矛盾エラーチェックを追加)
+# 4. お願い投稿画面 
 # ==========================================
 def show_post_job():
     st.title("➕ お願いを投稿")
@@ -287,7 +301,7 @@ def show_post_job():
     st.write("**⏳ 応募の締め切り**")
     col3, col4 = st.columns(2)
     deadline_date = col3.date_input("締め切りの日", value=japan_today)
-    deadline_time = col4.time_input("締め切りの時間", value=datetime.time(8, 0)) # 初期値を仕事前によくある朝8時に
+    deadline_time = col4.time_input("締め切りの時間", value=datetime.time(8, 0))
     st.write("---")
     
     st.write("**💰 お礼・給与**")
@@ -314,7 +328,6 @@ def show_post_job():
     if st.button("確認申請を送る", type="primary", use_container_width=True):
         if title and pay and loc_detail:
             
-            # ★ここで時間がおかしくないか自動チェックします！
             start_datetime = datetime.datetime.combine(job_date, start_time)
             expire_datetime = datetime.datetime.combine(job_date, end_time)
             deadline_datetime = datetime.datetime.combine(deadline_date, deadline_time)
@@ -324,7 +337,6 @@ def show_post_job():
             elif deadline_datetime >= start_datetime:
                 st.error("⚠️ エラー：「応募の締め切り」は、仕事が始まる時間よりも【前】に設定してください。")
             else:
-                # すべて正しい時間設定だった場合のみ保存する
                 full_loc = f"秋田県{city} {loc_detail}".strip()
                 
                 date_str = job_date.strftime("%Y年%m月%d日")
@@ -380,7 +392,7 @@ def show_history():
         change_page("job_list")
 
 # ==========================================
-# 6. 管理者画面
+# 6. 管理者画面 (★応募者の詳細情報をきれいに表示)
 # ==========================================
 def show_admin_dashboard():
     with st.sidebar:
@@ -452,11 +464,16 @@ def show_admin_dashboard():
                 st.write("👥 **この案件への応募者情報:**")
                 for phone, app in applicants.items():
                     with st.container(border=True):
-                        st.write(f"👤 **{app['name']}** さん （{app['gender']} / {app['age']}歳 / {app.get('occupation', '不明')}）")
-                        st.write(f"📞 **電話番号:** {phone}")
+                        # ★ より詳細になった応募者情報を表示
+                        name_kana = app.get('name_kana', '')
+                        kana_display = f"（{name_kana}）" if name_kana else ""
+                        st.write(f"👤 **{app['name']}** さん {kana_display} ｜ {app['gender']} / {app['age']}歳 / {app.get('occupation', '不明')}")
+                        st.write(f"🏠 **住所:** {app.get('address', '未記入')} ｜ 📞 **電話番号:** {phone}")
                         
                         license_mark = "✅ あり" if app.get('has_license') else "❌ なし"
                         st.write(f"🚗 **交通手段:** {app.get('transport', '不明')} ｜ 💳 **免許:** {license_mark}")
+                        
+                        st.write(f"🌾 **作業経験:** {app.get('experience', '不明')} ｜ 🏥 **健康状態・配慮:** {app.get('health', '特になし')}")
                         
                         st.write(f"💬 **自己PR・メッセージ:** {app['message']}")
             else:
