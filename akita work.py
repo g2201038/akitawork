@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import json
 import uuid
-import datetime  # 日付や時間を扱うための部品
+import datetime
 
 # ==========================================
 # ★ データベース設定（Firebase）
@@ -40,6 +40,11 @@ akita_cities = ["秋田市", "能代市", "横手市", "大館市", "男鹿市",
 def change_page(page_name):
     st.session_state.page = page_name
     st.rerun()
+
+# --- ★日本時間を確実に取得する関数 ---
+def get_japan_now():
+    # サーバーの時間に関わらず、常に日本時間(UTC+9)を計算します
+    return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).replace(tzinfo=None)
 
 # ==========================================
 # 1. ログイン画面
@@ -100,7 +105,7 @@ def show_register():
         change_page("login")
 
 # ==========================================
-# 2. 仕事一覧画面 (★日時の期限切れを自動判定！)
+# 2. 仕事一覧画面 (★日本時間で厳密に期限切れ判定)
 # ==========================================
 def show_job_list():
     with st.sidebar:
@@ -119,20 +124,19 @@ def show_job_list():
     st.title("🟢 現在の募集一覧")
     
     user_history = st.session_state.user.get("history", [])
-    now = datetime.datetime.now() # 現在の時刻を取得
+    now = get_japan_now() # ★現在の日本時間を正確に取得
     
     available_jobs = {}
     for jid, j in db["jobs"].items():
-        # 1. 承認済み かつ まだ応募していない仕事かチェック
         if j.get("status") == "approved" and jid not in user_history:
-            # 2. 期限が設定されている場合は、期限を過ぎていないかチェック
+            # 期限が過ぎていないか厳密にチェック
             if "expire_at" in j:
                 try:
                     expire_dt = datetime.datetime.strptime(j["expire_at"], "%Y-%m-%d %H:%M:%S")
-                    if now > expire_dt:
-                        continue # 期限が過ぎているので一覧への追加をスキップ（自動非表示）
+                    if now >= expire_dt:
+                        continue # 過ぎていたら一覧に出さない
                 except:
-                    pass # 万が一データ形式が壊れていたらそのまま表示
+                    pass
             
             available_jobs[jid] = j
     
@@ -178,7 +182,6 @@ def show_job_detail():
     
     st.write("---")
     st.subheader("📝 応募フォーム（個人情報の入力）")
-    st.write("このお仕事に応募するため、以下の項目を入力してください。")
     
     col1, col2 = st.columns(2)
     app_age = col1.number_input("年齢", min_value=15, max_value=100, value=20, step=1)
@@ -199,12 +202,14 @@ def show_job_detail():
                 if "applicants" not in job or job["applicants"] is None:
                     job["applicants"] = {}
                 
+                # 応募時間も日本時間で保存
+                now_str = get_japan_now().strftime("%Y年%m月%d日 %H:%M")
                 job["applicants"][st.session_state.phone] = {
                     "name": st.session_state.user.get("name", "名無し"),
                     "age": app_age,
                     "gender": app_gender,
                     "message": app_message,
-                    "applied_at": datetime.datetime.now().strftime("%Y年%m月%d日 %H:%M")
+                    "applied_at": now_str
                 }
                 db["jobs"][jid] = job
                 
@@ -216,14 +221,16 @@ def show_job_detail():
         change_page("job_list")
 
 # ==========================================
-# 4. お願い投稿画面 (★内部で終了時間を保存するように変更)
+# 4. お願い投稿画面
 # ==========================================
 def show_post_job():
     st.title("➕ お願いを投稿")
     title = st.text_input("困りごと・内容 (例: 庭の草むしり)")
     
     st.write("**📅 仕事の日と時間**")
-    job_date = st.date_input("仕事の日", value=datetime.date.today())
+    # 初期値を日本時間の日付にする
+    japan_today = get_japan_now().date()
+    job_date = st.date_input("仕事の日", value=japan_today)
     
     col1, col2 = st.columns(2)
     start_time = col1.time_input("始まりの時間", value=datetime.time(9, 0))
@@ -259,8 +266,7 @@ def show_post_job():
             e_time_str = end_time.strftime("%H:%M")
             datetime_str = f"{date_str} {s_time_str}〜{e_time_str}"
             
-            # ★ 自動削除（非表示）のための「期限日時」を計算して作成
-            # 例: 「仕事の日」が2026/03/10で「終わりの時間」が12:00の場合、"2026-03-10 12:00:00" を期限にする
+            # 終了のタイムリミット日時を作成
             expire_datetime = datetime.datetime.combine(job_date, end_time)
             expire_str = expire_datetime.strftime("%Y-%m-%d %H:%M:%S")
             
@@ -269,7 +275,7 @@ def show_post_job():
             db["jobs"][new_jid] = {
                 "title": title, "time": datetime_str, "pay": pay, "loc": full_loc, "loc_type": loc_type,
                 "items": items, "status": "pending", "posted_by": st.session_state.user.get("name", "名無し"),
-                "expire_at": expire_str # ★データベースに期限を保存
+                "expire_at": expire_str
             }
             save_data(db)
             
@@ -302,7 +308,7 @@ def show_history():
         change_page("job_list")
 
 # ==========================================
-# 6. 管理者画面 (★期限切れ案件も分かりやすく管理可能)
+# 6. 管理者画面
 # ==========================================
 def show_admin_dashboard():
     with st.sidebar:
@@ -331,16 +337,15 @@ def show_admin_dashboard():
                 st.rerun()
 
     st.subheader(f"🟢 掲載中 ({len(approved_jobs)}件)")
-    now = datetime.datetime.now()
+    now = get_japan_now()
     
     for jid, job in approved_jobs.items():
         with st.container(border=True):
-            # 期限を過ぎているかどうかを管理者画面にバッジ風に表示
             is_expired = False
             if "expire_at" in job:
                 try:
                     expire_dt = datetime.datetime.strptime(job["expire_at"], "%Y-%m-%d %H:%M:%S")
-                    if now > expire_dt:
+                    if now >= expire_dt:
                         is_expired = True
                 except:
                     pass
