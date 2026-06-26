@@ -43,7 +43,6 @@ def change_page(page_name):
 
 # --- ★日本時間を確実に取得する関数 ---
 def get_japan_now():
-    # サーバーの時間に関わらず、常に日本時間(UTC+9)を計算します
     return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).replace(tzinfo=None)
 
 # ==========================================
@@ -105,7 +104,7 @@ def show_register():
         change_page("login")
 
 # ==========================================
-# 2. 仕事一覧画面 (★日本時間で厳密に期限切れ判定)
+# 2. 仕事一覧画面
 # ==========================================
 def show_job_list():
     with st.sidebar:
@@ -124,20 +123,18 @@ def show_job_list():
     st.title("🟢 現在の募集一覧")
     
     user_history = st.session_state.user.get("history", [])
-    now = get_japan_now() # ★現在の日本時間を正確に取得
+    now = get_japan_now()
     
     available_jobs = {}
     for jid, j in db["jobs"].items():
         if j.get("status") == "approved" and jid not in user_history:
-            # 期限が過ぎていないか厳密にチェック
             if "expire_at" in j:
                 try:
                     expire_dt = datetime.datetime.strptime(j["expire_at"], "%Y-%m-%d %H:%M:%S")
                     if now >= expire_dt:
-                        continue # 過ぎていたら一覧に出さない
+                        continue
                 except:
                     pass
-            
             available_jobs[jid] = j
     
     if not available_jobs:
@@ -155,7 +152,7 @@ def show_job_list():
                     change_page("job_detail")
 
 # ==========================================
-# 3. 仕事詳細画面
+# 3. 仕事詳細画面 (★応募フォームをさらに詳細化！)
 # ==========================================
 def show_job_detail():
     jid = st.session_state.current_job_id
@@ -182,12 +179,20 @@ def show_job_detail():
     
     st.write("---")
     st.subheader("📝 応募フォーム（個人情報の入力）")
+    st.write("このお仕事に応募するため、以下の項目を入力してください。")
     
+    # 📝 入力項目を増やす
     col1, col2 = st.columns(2)
     app_age = col1.number_input("年齢", min_value=15, max_value=100, value=20, step=1)
     app_gender = col2.selectbox("性別", ["男性", "女性", "その他", "回答しない"])
     
-    app_message = st.text_area("自己PR・管理者へのメッセージ", placeholder="よろしくお願いいたします。")
+    col3, col4 = st.columns(2)
+    app_occupation = col3.selectbox("現在のご職業", ["会社員", "自営業", "学生", "主婦・主夫", "フリーター", "無職", "その他"])
+    app_transport = col4.selectbox("現地までの交通手段", ["自家用車（駐車場希望）", "公共交通機関（バス・電車）", "徒歩・自転車", "家族等の送迎", "その他"])
+    
+    app_license = st.checkbox("🚗 普通自動車免許あり")
+    
+    app_message = st.text_area("自己PR・管理者へのメッセージ", placeholder="例: 体力には自信があります！/ 土日いつでも動けます。よろしくお願いいたします。")
     
     if st.button("✨ この仕事に応募する", type="primary", use_container_width=True):
         if not app_message:
@@ -202,12 +207,15 @@ def show_job_detail():
                 if "applicants" not in job or job["applicants"] is None:
                     job["applicants"] = {}
                 
-                # 応募時間も日本時間で保存
                 now_str = get_japan_now().strftime("%Y年%m月%d日 %H:%M")
+                # ★追加した詳しい情報をデータベースに保存
                 job["applicants"][st.session_state.phone] = {
                     "name": st.session_state.user.get("name", "名無し"),
                     "age": app_age,
                     "gender": app_gender,
+                    "occupation": app_occupation,
+                    "transport": app_transport,
+                    "has_license": app_license,
                     "message": app_message,
                     "applied_at": now_str
                 }
@@ -228,7 +236,6 @@ def show_post_job():
     title = st.text_input("困りごと・内容 (例: 庭の草むしり)")
     
     st.write("**📅 仕事の日と時間**")
-    # 初期値を日本時間の日付にする
     japan_today = get_japan_now().date()
     job_date = st.date_input("仕事の日", value=japan_today)
     
@@ -266,7 +273,6 @@ def show_post_job():
             e_time_str = end_time.strftime("%H:%M")
             datetime_str = f"{date_str} {s_time_str}〜{e_time_str}"
             
-            # 終了のタイムリミット日時を作成
             expire_datetime = datetime.datetime.combine(job_date, end_time)
             expire_str = expire_datetime.strftime("%Y-%m-%d %H:%M:%S")
             
@@ -308,7 +314,7 @@ def show_history():
         change_page("job_list")
 
 # ==========================================
-# 6. 管理者画面
+# 6. 管理者画面 (★応募者の詳しい情報を表示！)
 # ==========================================
 def show_admin_dashboard():
     with st.sidebar:
@@ -361,8 +367,13 @@ def show_admin_dashboard():
                 st.write("👥 **この案件への応募者情報:**")
                 for phone, app in applicants.items():
                     with st.container(border=True):
-                        st.write(f"👤 **{app['name']}** さん （{app['gender']} / {app['age']}歳）")
+                        # ★ 管理者画面で詳しく表示するように変更
+                        st.write(f"👤 **{app['name']}** さん （{app['gender']} / {app['age']}歳 / {app.get('occupation', '不明')}）")
                         st.write(f"📞 **電話番号:** {phone}")
+                        
+                        license_mark = "✅ あり" if app.get('has_license') else "❌ なし"
+                        st.write(f"🚗 **交通手段:** {app.get('transport', '不明')} ｜ 💳 **免許:** {license_mark}")
+                        
                         st.write(f"💬 **自己PR・メッセージ:** {app['message']}")
             else:
                 st.write("⚪ *まだ応募者はいません*")
