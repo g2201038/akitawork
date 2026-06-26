@@ -104,7 +104,7 @@ def show_register():
         change_page("login")
 
 # ==========================================
-# 2. 仕事一覧画面 (★締め切り判定を追加)
+# 2. 仕事一覧画面
 # ==========================================
 def show_job_list():
     with st.sidebar:
@@ -130,7 +130,6 @@ def show_job_list():
         if j.get("status") == "approved" and jid not in user_history:
             skip_job = False
             
-            # ① 応募の締め切りを過ぎていないかチェック
             if "deadline_at" in j:
                 try:
                     deadline_dt = datetime.datetime.strptime(j["deadline_at"], "%Y-%m-%d %H:%M:%S")
@@ -138,7 +137,6 @@ def show_job_list():
                         skip_job = True
                 except: pass
             
-            # ② 仕事の終了時間を過ぎていないかチェック
             if "expire_at" in j:
                 try:
                     expire_dt = datetime.datetime.strptime(j["expire_at"], "%Y-%m-%d %H:%M:%S")
@@ -158,7 +156,6 @@ def show_job_list():
             with st.container(border=True):
                 st.subheader(job["title"])
                 
-                # 締め切り時間の表示用フォーマット
                 deadline_str = "未設定"
                 if "deadline_at" in job:
                     try:
@@ -229,7 +226,6 @@ def show_job_detail():
     if st.button("✨ この仕事に応募する", type="primary", use_container_width=True):
         now = get_japan_now()
         
-        # 開きっぱなしにしていて締め切りを過ぎてしまった場合のブロック処理
         is_too_late = False
         if "deadline_at" in job:
             try:
@@ -273,7 +269,7 @@ def show_job_detail():
         change_page("job_list")
 
 # ==========================================
-# 4. お願い投稿画面 (★応募締め切りの設定を追加)
+# 4. お願い投稿画面 (★時間の矛盾エラーチェックを追加)
 # ==========================================
 def show_post_job():
     st.title("➕ お願いを投稿")
@@ -289,11 +285,9 @@ def show_post_job():
     
     st.write("---")
     st.write("**⏳ 応募の締め切り**")
-    st.write("※この時間を過ぎると、ユーザーの募集一覧から自動で見えなくなります。")
     col3, col4 = st.columns(2)
-    # 初期値は前日の夜などに設定する人が多いですが、ここでは仕事日と同じ日にしておきます
     deadline_date = col3.date_input("締め切りの日", value=japan_today)
-    deadline_time = col4.time_input("締め切りの時間", value=datetime.time(23, 59))
+    deadline_time = col4.time_input("締め切りの時間", value=datetime.time(8, 0)) # 初期値を仕事前によくある朝8時に
     st.write("---")
     
     st.write("**💰 お礼・給与**")
@@ -319,39 +313,46 @@ def show_post_job():
     
     if st.button("確認申請を送る", type="primary", use_container_width=True):
         if title and pay and loc_detail:
-            full_loc = f"秋田県{city} {loc_detail}".strip()
             
-            date_str = job_date.strftime("%Y年%m月%d日")
-            s_time_str = start_time.strftime("%H:%M")
-            e_time_str = end_time.strftime("%H:%M")
-            datetime_str = f"{date_str} {s_time_str}〜{e_time_str}"
-            
-            # 仕事の終了時間（これまでの非表示基準）
+            # ★ここで時間がおかしくないか自動チェックします！
+            start_datetime = datetime.datetime.combine(job_date, start_time)
             expire_datetime = datetime.datetime.combine(job_date, end_time)
-            expire_str = expire_datetime.strftime("%Y-%m-%d %H:%M:%S")
-            
-            # ★ 応募の締め切り時間（新しい非表示基準）
             deadline_datetime = datetime.datetime.combine(deadline_date, deadline_time)
-            deadline_str = deadline_datetime.strftime("%Y-%m-%d %H:%M:%S")
             
-            new_jid = str(uuid.uuid4())
-            
-            db["jobs"][new_jid] = {
-                "title": title, 
-                "time": datetime_str, 
-                "pay": pay, 
-                "loc": full_loc, 
-                "loc_type": loc_type,
-                "items": items, 
-                "status": "pending", 
-                "posted_by": st.session_state.user.get("name", "名無し"),
-                "expire_at": expire_str,
-                "deadline_at": deadline_str  # ★ データベースに締め切りを保存
-            }
-            save_data(db)
-            
-            st.success("管理者に申請しました！許可されると一覧に表示されます。")
-            change_page("job_list")
+            if expire_datetime <= start_datetime:
+                st.error("⚠️ エラー：「終わりの時間」は「始まりの時間」よりも【後】に設定してください。")
+            elif deadline_datetime >= start_datetime:
+                st.error("⚠️ エラー：「応募の締め切り」は、仕事が始まる時間よりも【前】に設定してください。")
+            else:
+                # すべて正しい時間設定だった場合のみ保存する
+                full_loc = f"秋田県{city} {loc_detail}".strip()
+                
+                date_str = job_date.strftime("%Y年%m月%d日")
+                s_time_str = start_time.strftime("%H:%M")
+                e_time_str = end_time.strftime("%H:%M")
+                datetime_str = f"{date_str} {s_time_str}〜{e_time_str}"
+                
+                expire_str = expire_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                deadline_str = deadline_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                
+                new_jid = str(uuid.uuid4())
+                
+                db["jobs"][new_jid] = {
+                    "title": title, 
+                    "time": datetime_str, 
+                    "pay": pay, 
+                    "loc": full_loc, 
+                    "loc_type": loc_type,
+                    "items": items, 
+                    "status": "pending", 
+                    "posted_by": st.session_state.user.get("name", "名無し"),
+                    "expire_at": expire_str,
+                    "deadline_at": deadline_str
+                }
+                save_data(db)
+                
+                st.success("管理者に申請しました！許可されると一覧に表示されます。")
+                change_page("job_list")
         else:
             st.warning("未入力の項目があります。")
         
