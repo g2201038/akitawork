@@ -127,4 +127,249 @@ def show_job_list():
     }
     
     if not available_jobs:
-        st.info("現在
+        st.info("現在募集中の求人はありません（すべて応募済みか、募集がありません）。左上の「＞」メニューから募集を投稿できます！")
+    else:
+        for jid, job in reversed(list(available_jobs.items())):
+            with st.container(border=True):
+                st.subheader(job["title"])
+                st.write(f"💰 **謝礼:** {job['pay']} ⏰ **日時:** {job['time']}")
+                loc_type_label = f"[{job.get('loc_type', 'その他')}] " if job.get('loc_type') else ""
+                st.write(f"📍 **場所:** {loc_type_label}{job['loc']}")
+                
+                if st.button("詳しく見て応募する", key=f"det_{jid}", type="primary"):
+                    st.session_state.current_job_id = jid
+                    change_page("job_detail")
+
+# ==========================================
+# 3. 仕事詳細画面 (★応募時の個人情報入力を追加！)
+# ==========================================
+def show_job_detail():
+    jid = st.session_state.current_job_id
+    job = db["jobs"].get(jid)
+    
+    if not job:
+        st.error("このお仕事は削除されたか、見つかりません。")
+        if st.button("一覧に戻る"): change_page("job_list")
+        return
+
+    st.title("📋 お仕事の詳細")
+    
+    with st.container(border=True):
+        st.subheader(job["title"])
+        st.write(f"**⏰ 日時:** {job['time']}")
+        st.write(f"**💰 給与:** {job['pay']}")
+        st.write(f"**🎒 持ち物:** {job['items']}")
+        if job.get('loc_type'):
+            st.write(f"**🏢 場所の種類:** {job['loc_type']}")
+        st.write(f"**📍 詳しい勤務地:** {job['loc']}")
+        
+        map_url = f"https://www.google.com/maps/search/?api=1&query={requests.utils.quote(job['loc'])}"
+        st.markdown(f"🗺️ [Googleマップで詳しい場所を開く（別タブ）]({map_url})")
+    
+    # 📝 応募フォーム（ここでもっと個人情報をかかせる）
+    st.write("---")
+    st.subheader("📝 応募フォーム（個人情報の入力）")
+    st.write("このお仕事に応募するため、以下の項目を入力してください。入力内容は管理者にのみ送信されます。")
+    
+    col1, col2 = st.columns(2)
+    app_age = col1.number_input("年齢", min_value=15, max_value=100, value=20, step=1)
+    app_gender = col2.selectbox("性別", ["男性", "女性", "その他", "回答しない"])
+    
+    app_message = st.text_area(
+        "自己PR・管理者へのメッセージ", 
+        placeholder="例: 体力には自信があります！/ 土日いつでも動けます。よろしくお願いいたします。"
+    )
+    
+    if st.button("✨ この仕事に応募する", type="primary", use_container_width=True):
+        if not app_message:
+            st.warning("「自己PR・管理者へのメッセージ」を入力してください。")
+        else:
+            user_history = st.session_state.user.get("history", [])
+            if jid not in user_history:
+                # 1. ユーザー側の応募履歴を更新
+                user_history.append(jid)
+                st.session_state.user["history"] = user_history
+                db["users"][st.session_state.phone]["history"] = user_history
+                
+                # 2. 仕事データ側に応募者の詳しい個人情報を紐づけて保存
+                if "applicants" not in job or job["applicants"] is None:
+                    job["applicants"] = {}
+                
+                job["applicants"][st.session_state.phone] = {
+                    "name": st.session_state.user.get("name", "名無し"),
+                    "age": app_age,
+                    "gender": app_gender,
+                    "message": app_message,
+                    "applied_at": datetime.datetime.now().strftime("%Y年%m月%d日 %H:%M")
+                }
+                db["jobs"][jid] = job
+                
+                save_data(db)
+                st.success("応募が完了しました！あなたの個人情報とメッセージが送信されました。")
+                change_page("job_list")
+        
+    if st.button("一覧に戻る", use_container_width=True):
+        change_page("job_list")
+
+# ==========================================
+# 4. お願い投稿画面
+# ==========================================
+def show_post_job():
+    st.title("➕ お願いを投稿")
+    title = st.text_input("困りごと・内容 (例: 庭の草むしり)")
+    
+    st.write("**📅 仕事の日と時間**")
+    job_date = st.date_input("仕事の日", value=datetime.date.today())
+    
+    col1, col2 = st.columns(2)
+    start_time = col1.time_input("始まりの時間", value=datetime.time(9, 0))
+    end_time = col2.time_input("終わりの時間", value=datetime.time(12, 0))
+    
+    st.write("**💰 お礼・給与**")
+    pay_options = [f"{i:,.0f}円" for i in range(500, 20500, 500)] + ["その他 (手入力)"]
+    pay_sel = st.selectbox("金額を選ぶ (500円刻み)", pay_options, index=3)
+    
+    if pay_sel == "その他 (手入力)":
+        pay = st.text_input("金額を入力 (例: 25,000円)")
+    else:
+        pay = pay_sel
+    
+    st.write("**📍 勤務地・集まる場所**")
+    user_city = st.session_state.user.get('city', '')
+    default_idx = akita_cities.index(user_city) if user_city in akita_cities else 0
+    city = st.selectbox("市町村", akita_cities, index=default_idx)
+    
+    loc_type_options = ["個人宅（庭や屋内など）", "農地・畑・果樹園・山林", "店舗・商業施設・飲食店", "オフィス・事務所・工場", "公共施設（駅・公園・役所など）", "その他"]
+    loc_type = st.selectbox("場所の種類・ジャンル", loc_type_options)
+    
+    loc_detail = st.text_input(
+        "詳しい住所・町名・建物名", 
+        placeholder="例: 山王1丁目1-1、アトリオン、〇〇地区のファミリーマート付近、など"
+    )
+        
+    items = st.text_input("🎒 持ち物や注意点 (例: 軍手、長靴)")
+    
+    if st.button("確認申請を送る", type="primary", use_container_width=True):
+        if title and pay and loc_detail:
+            full_loc = f"秋田県{city} {loc_detail}".strip()
+            
+            date_str = job_date.strftime("%Y年%m月%d日")
+            s_time_str = start_time.strftime("%H:%M")
+            e_time_str = end_time.strftime("%H:%M")
+            datetime_str = f"{date_str} {s_time_str}〜{e_time_str}"
+            
+            new_jid = str(uuid.uuid4())
+            
+            db["jobs"][new_jid] = {
+                "title": title, "time": datetime_str, "pay": pay, "loc": full_loc, "loc_type": loc_type,
+                "items": items, "status": "pending", "posted_by": st.session_state.user.get("name", "名無し")
+            }
+            save_data(db)
+            
+            st.success("管理者に申請しました！許可されると一覧に表示されます。")
+            change_page("job_list")
+        else:
+            st.warning("「詳しい住所・町名・建物名」など、未入力の項目があります。")
+        
+    if st.button("やめる（戻る）", use_container_width=True):
+        change_page("job_list")
+
+# ==========================================
+# 5. 応募履歴
+# ==========================================
+def show_history():
+    st.title("📋 応募履歴")
+    history_jids = st.session_state.user.get("history", [])
+    
+    if not history_jids:
+        st.info("まだ応募履歴がありません。")
+    else:
+        for jid in history_jids:
+            job = db["jobs"].get(jid)
+            if job:
+                st.success(f"✅ {job['title']} ({job['time']})")
+            else:
+                st.warning("終了または削除されたお仕事です")
+            
+    if st.button("一覧に戻る"):
+        change_page("job_list")
+
+# ==========================================
+# 6. 管理者画面 (★掲載中の求人の下に応募者一覧を表示)
+# ==========================================
+def show_admin_dashboard():
+    with st.sidebar:
+        st.title("🏢 管理者メニュー")
+        if st.button("👥 ユーザー管理"): change_page("admin_users")
+        st.divider()
+        if st.button("ログアウト"): change_page("login")
+
+    st.title("⚙️ 管理ダッシュボード")
+    
+    pending_jobs = {jid: j for jid, j in db["jobs"].items() if j.get("status") == "pending"}
+    approved_jobs = {jid: j for jid, j in db["jobs"].items() if j.get("status") == "approved"}
+    
+    st.subheader(f"📥 承認待ち ({len(pending_jobs)}件)")
+    for jid, job in pending_jobs.items():
+        with st.container(border=True):
+            st.write(f"**{job['title']}** (投稿者: {job.get('posted_by', '不明')}さん)")
+            col1, col2 = st.columns(2)
+            if col1.button("✅ 許可", key=f"app_admin_{jid}", type="primary", use_container_width=True):
+                db["jobs"][jid]["status"] = "approved"
+                save_data(db)
+                st.rerun()
+            if col2.button("🗑 削除", key=f"del_admin_{jid}", use_container_width=True):
+                del db["jobs"][jid]
+                save_data(db)
+                st.rerun()
+
+    st.subheader(f"🟢 掲載中 ({len(approved_jobs)}件)")
+    for jid, job in approved_jobs.items():
+        with st.container(border=True):
+            st.markdown(f"### 💼 {job['title']}")
+            st.write(f"⏰ **日時:** {job['time']} / 📍 **場所:** {job['loc']}")
+            
+            # ★ ここにその仕事に応募してきた人の個人情報を一覧表示する
+            applicants = job.get("applicants", {})
+            if applicants:
+                st.write("👥 **この案件への応募者情報:**")
+                for phone, app in applicants.items():
+                    with st.container(border=True):
+                        st.write(f"👤 **{app['name']}** さん （{app['gender']} / {app['age']}歳）")
+                        st.write(f"📞 **電話番号:** {phone}")
+                        st.write(f"💬 **自己PR・メッセージ:** {app['message']}")
+                        st.caption(f"📅 応募日時: {app.get('applied_at', '不明')}")
+            else:
+                st.write("⚪ *まだ応募者はいません*")
+                
+            st.write("")
+            if st.button("🗑 掲載を終了・削除", key=f"del_pub_{jid}", type="primary"):
+                del db["jobs"][jid]
+                save_data(db)
+                st.rerun()
+
+def show_admin_users():
+    with st.sidebar:
+        if st.button("戻る"): change_page("admin_dashboard")
+        
+    st.title("👥 登録ユーザー一覧")
+    
+    for phone, u in db["users"].items():
+        with st.container(border=True):
+            st.write(f"**{u.get('name', '名無し')}** さん (📞 {phone}) - {u.get('city', '未設定')}")
+            if st.button("🗑 アカウント削除", key=f"del_user_{phone}", type="primary"):
+                del db["users"][phone]
+                save_data(db)
+                st.rerun()
+
+# ==========================================
+# ★ 画面の振り分け（ルーティング）
+# ==========================================
+if st.session_state.page == "login": show_login()
+elif st.session_state.page == "register": show_register()
+elif st.session_state.page == "job_list": show_job_list()
+elif st.session_state.page == "job_detail": show_job_detail()
+elif st.session_state.page == "post_job": show_post_job()
+elif st.session_state.page == "history": show_history()
+elif st.session_state.page == "admin_dashboard": show_admin_dashboard()
+elif st.session_state.page == "admin_users": show_admin_users()
