@@ -100,7 +100,7 @@ def show_register():
         change_page("login")
 
 # ==========================================
-# 2. 仕事一覧画面
+# 2. 仕事一覧画面 (★日時の期限切れを自動判定！)
 # ==========================================
 def show_job_list():
     with st.sidebar:
@@ -119,15 +119,25 @@ def show_job_list():
     st.title("🟢 現在の募集一覧")
     
     user_history = st.session_state.user.get("history", [])
+    now = datetime.datetime.now() # 現在の時刻を取得
     
-    # 自分がまだ応募していない仕事だけを絞り込む
-    available_jobs = {
-        jid: j for jid, j in db["jobs"].items() 
-        if j.get("status") == "approved" and jid not in user_history
-    }
+    available_jobs = {}
+    for jid, j in db["jobs"].items():
+        # 1. 承認済み かつ まだ応募していない仕事かチェック
+        if j.get("status") == "approved" and jid not in user_history:
+            # 2. 期限が設定されている場合は、期限を過ぎていないかチェック
+            if "expire_at" in j:
+                try:
+                    expire_dt = datetime.datetime.strptime(j["expire_at"], "%Y-%m-%d %H:%M:%S")
+                    if now > expire_dt:
+                        continue # 期限が過ぎているので一覧への追加をスキップ（自動非表示）
+                except:
+                    pass # 万が一データ形式が壊れていたらそのまま表示
+            
+            available_jobs[jid] = j
     
     if not available_jobs:
-        st.info("現在募集中の求人はありません（すべて応募済みか、募集がありません）。左上の「＞」メニューから募集を投稿できます！")
+        st.info("現在募集中の求人はありません（すべて応募済み、期限切れ、または募集がありません）。")
     else:
         for jid, job in reversed(list(available_jobs.items())):
             with st.container(border=True):
@@ -141,7 +151,7 @@ def show_job_list():
                     change_page("job_detail")
 
 # ==========================================
-# 3. 仕事詳細画面 (★応募時の個人情報入力を追加！)
+# 3. 仕事詳細画面
 # ==========================================
 def show_job_detail():
     jid = st.session_state.current_job_id
@@ -166,19 +176,15 @@ def show_job_detail():
         map_url = f"https://www.google.com/maps/search/?api=1&query={requests.utils.quote(job['loc'])}"
         st.markdown(f"🗺️ [Googleマップで詳しい場所を開く（別タブ）]({map_url})")
     
-    # 📝 応募フォーム（ここでもっと個人情報をかかせる）
     st.write("---")
     st.subheader("📝 応募フォーム（個人情報の入力）")
-    st.write("このお仕事に応募するため、以下の項目を入力してください。入力内容は管理者にのみ送信されます。")
+    st.write("このお仕事に応募するため、以下の項目を入力してください。")
     
     col1, col2 = st.columns(2)
     app_age = col1.number_input("年齢", min_value=15, max_value=100, value=20, step=1)
     app_gender = col2.selectbox("性別", ["男性", "女性", "その他", "回答しない"])
     
-    app_message = st.text_area(
-        "自己PR・管理者へのメッセージ", 
-        placeholder="例: 体力には自信があります！/ 土日いつでも動けます。よろしくお願いいたします。"
-    )
+    app_message = st.text_area("自己PR・管理者へのメッセージ", placeholder="よろしくお願いいたします。")
     
     if st.button("✨ この仕事に応募する", type="primary", use_container_width=True):
         if not app_message:
@@ -186,12 +192,10 @@ def show_job_detail():
         else:
             user_history = st.session_state.user.get("history", [])
             if jid not in user_history:
-                # 1. ユーザー側の応募履歴を更新
                 user_history.append(jid)
                 st.session_state.user["history"] = user_history
                 db["users"][st.session_state.phone]["history"] = user_history
                 
-                # 2. 仕事データ側に応募者の詳しい個人情報を紐づけて保存
                 if "applicants" not in job or job["applicants"] is None:
                     job["applicants"] = {}
                 
@@ -205,14 +209,14 @@ def show_job_detail():
                 db["jobs"][jid] = job
                 
                 save_data(db)
-                st.success("応募が完了しました！あなたの個人情報とメッセージが送信されました。")
+                st.success("応募が完了しました！")
                 change_page("job_list")
         
     if st.button("一覧に戻る", use_container_width=True):
         change_page("job_list")
 
 # ==========================================
-# 4. お願い投稿画面
+# 4. お願い投稿画面 (★内部で終了時間を保存するように変更)
 # ==========================================
 def show_post_job():
     st.title("➕ お願いを投稿")
@@ -242,10 +246,7 @@ def show_post_job():
     loc_type_options = ["個人宅（庭や屋内など）", "農地・畑・果樹園・山林", "店舗・商業施設・飲食店", "オフィス・事務所・工場", "公共施設（駅・公園・役所など）", "その他"]
     loc_type = st.selectbox("場所の種類・ジャンル", loc_type_options)
     
-    loc_detail = st.text_input(
-        "詳しい住所・町名・建物名", 
-        placeholder="例: 山王1丁目1-1、アトリオン、〇〇地区のファミリーマート付近、など"
-    )
+    loc_detail = st.text_input("詳しい住所・町名・建物名", placeholder="例: 山王1丁目1-1 など")
         
     items = st.text_input("🎒 持ち物や注意点 (例: 軍手、長靴)")
     
@@ -258,18 +259,24 @@ def show_post_job():
             e_time_str = end_time.strftime("%H:%M")
             datetime_str = f"{date_str} {s_time_str}〜{e_time_str}"
             
+            # ★ 自動削除（非表示）のための「期限日時」を計算して作成
+            # 例: 「仕事の日」が2026/03/10で「終わりの時間」が12:00の場合、"2026-03-10 12:00:00" を期限にする
+            expire_datetime = datetime.datetime.combine(job_date, end_time)
+            expire_str = expire_datetime.strftime("%Y-%m-%d %H:%M:%S")
+            
             new_jid = str(uuid.uuid4())
             
             db["jobs"][new_jid] = {
                 "title": title, "time": datetime_str, "pay": pay, "loc": full_loc, "loc_type": loc_type,
-                "items": items, "status": "pending", "posted_by": st.session_state.user.get("name", "名無し")
+                "items": items, "status": "pending", "posted_by": st.session_state.user.get("name", "名無し"),
+                "expire_at": expire_str # ★データベースに期限を保存
             }
             save_data(db)
             
             st.success("管理者に申請しました！許可されると一覧に表示されます。")
             change_page("job_list")
         else:
-            st.warning("「詳しい住所・町名・建物名」など、未入力の項目があります。")
+            st.warning("未入力の項目があります。")
         
     if st.button("やめる（戻る）", use_container_width=True):
         change_page("job_list")
@@ -295,7 +302,7 @@ def show_history():
         change_page("job_list")
 
 # ==========================================
-# 6. 管理者画面 (★掲載中の求人の下に応募者一覧を表示)
+# 6. 管理者画面 (★期限切れ案件も分かりやすく管理可能)
 # ==========================================
 def show_admin_dashboard():
     with st.sidebar:
@@ -324,12 +331,26 @@ def show_admin_dashboard():
                 st.rerun()
 
     st.subheader(f"🟢 掲載中 ({len(approved_jobs)}件)")
+    now = datetime.datetime.now()
+    
     for jid, job in approved_jobs.items():
         with st.container(border=True):
+            # 期限を過ぎているかどうかを管理者画面にバッジ風に表示
+            is_expired = False
+            if "expire_at" in job:
+                try:
+                    expire_dt = datetime.datetime.strptime(job["expire_at"], "%Y-%m-%d %H:%M:%S")
+                    if now > expire_dt:
+                        is_expired = True
+                except:
+                    pass
+            
+            if is_expired:
+                st.error("⏰ 【募集期限切れ・自動非表示中】")
+            
             st.markdown(f"### 💼 {job['title']}")
             st.write(f"⏰ **日時:** {job['time']} / 📍 **場所:** {job['loc']}")
             
-            # ★ ここにその仕事に応募してきた人の個人情報を一覧表示する
             applicants = job.get("applicants", {})
             if applicants:
                 st.write("👥 **この案件への応募者情報:**")
@@ -338,7 +359,6 @@ def show_admin_dashboard():
                         st.write(f"👤 **{app['name']}** さん （{app['gender']} / {app['age']}歳）")
                         st.write(f"📞 **電話番号:** {phone}")
                         st.write(f"💬 **自己PR・メッセージ:** {app['message']}")
-                        st.caption(f"📅 応募日時: {app.get('applied_at', '不明')}")
             else:
                 st.write("⚪ *まだ応募者はいません*")
                 
