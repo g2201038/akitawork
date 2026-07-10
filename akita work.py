@@ -442,8 +442,9 @@ def show_post_job():
                     "deadline_at": datetime.datetime.combine(deadline_date, deadline_time).strftime("%Y-%m-%d %H:%M:%S")
                 }
                 save_data(db)
-                # 投稿完了後にStateをリセットしておく
-                st.session_state.post_detail = "" 
+                
+                # ★修正ポイント：エラーの原因になっていた「リセットする行」を削除しました
+                
                 st.success("📨 事務局へ申請しました！")
                 change_page("job_list")
             else:
