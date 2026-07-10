@@ -246,6 +246,16 @@ def show_register():
 def show_job_list():
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.user.get('name', 'ゲスト')} さん")
+        my_rating = st.session_state.user.get("rating", 0.0)
+        my_reviews_count = st.session_state.user.get("reviews_count", 0)
+        
+        if my_reviews_count > 0:
+            my_stars = "★" * int(my_rating) + "☆" * (5 - int(my_rating))
+            st.markdown(f"<span style='color:#FF9900; font-size:1.1rem;'>{my_stars}</span> **{my_rating:.1f}** <span style='color:gray; font-size:0.9rem;'>({my_reviews_count}件)</span>", unsafe_allow_html=True)
+        else:
+            st.markdown("<span style='color:gray; font-size:0.9rem;'>評価: まだありません</span>", unsafe_allow_html=True)
+
+        st.markdown(f"📍 拠点: **{st.session_state.user.get('city', '未設定')}**")
         st.markdown(f"📍 拠点: **{st.session_state.user.get('city', '未設定')}**")
         st.divider()
         if st.button("➕ お願いを新規投稿", use_container_width=True): change_page("post_job")
@@ -286,7 +296,27 @@ def show_job_list():
         for jid, job in reversed(list(available_jobs.items())):
             with st.container(border=True):
                 st.markdown(f"### 💼 {job['title']}")
+                if not available_jobs:
+        st.info("現在募集中の求人はありません（すべて応募済み、もしくは期限切れです）。")
+    else:
+        for jid, job in reversed(list(available_jobs.items())):
+            with st.container(border=True):
+                st.markdown(f"### 💼 {job['title']}")
                 
+                # 💡 【追加②】依頼者の名前と口コミ評価を表示
+                poster_name = job.get("posted_by", "名無し")
+                poster_rating = job.get("poster_rating", 0.0)
+                poster_reviews_count = job.get("poster_reviews_count", 0)
+                
+                if poster_reviews_count > 0:
+                    stars = "★" * int(poster_rating) + "☆" * (5 - int(poster_rating))
+                    st.markdown(f"👤 **{poster_name}** さんの評価: <span style='color:#FF9900;'>{stars}</span> **{poster_rating:.1f}** <span style='font-size:0.8rem; color:gray;'>({poster_reviews_count}件)</span>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"👤 **{poster_name}** さんの評価: <span style='color:gray; font-size:0.9rem;'>まだ評価はありません</span>", unsafe_allow_html=True)
+                
+                st.write("") # 少し余白を空ける
+
+                deadline_str = "未設定"
                 deadline_str = "未設定"
                 if "deadline_at" in job:
                     try:
