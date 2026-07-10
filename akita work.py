@@ -13,7 +13,7 @@ DATA_FILE = "data.json"
 
 def load_data():
     if os.path.exists(DATA_FILE):
-        try: 
+        try:
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         except:
@@ -30,7 +30,7 @@ def save_data(data):
 st.set_page_config(page_title="あきたワーク Pro", page_icon="🌾", layout="centered", initial_sidebar_state="collapsed")
 
 # ==========================================
-# ✨ 新デザインCSS
+# ✨ デザインCSS
 # ==========================================
 st.markdown("""
     <style>
@@ -109,9 +109,6 @@ st.markdown("""
         font-size: 1.1rem !important;
         color: #222222 !important;
     }
-    .stTextInput>div>div>input:focus, .stSelectbox>div>div>div:focus, .stTextArea>div>div>textarea:focus {
-        border-color: #F2994A !important;
-    }
     
     section[data-testid="stSidebar"] { background-color: #4E342E !important; }
     section[data-testid="stSidebar"] h3, 
@@ -120,23 +117,35 @@ st.markdown("""
         color: #FFF8E1 !important;
     }
 
-    /* 連絡用リンクの装飾 */
-    a.contact-link {
-        display: inline-block;
-        background-color: #FFF3E0;
-        color: #E65100 !important;
-        padding: 4px 12px;
-        border-radius: 20px;
-        text-decoration: none;
-        font-weight: bold;
-        font-size: 0.9rem;
-        margin-left: 8px;
-        border: 1px solid #FFE0B2;
-        transition: all 0.2s;
-    }
-    a.contact-link:hover {
+    /* チャット吹き出し用スタイル */
+    .chat-bubble-me {
+        text-align: right;
         background-color: #FFE0B2;
-        transform: translateY(-2px);
+        color: #3E2723;
+        padding: 10px 14px;
+        border-radius: 15px 15px 2px 15px;
+        margin: 5px 0 5px auto;
+        max-width: 80%;
+        width: fit-content;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .chat-bubble-other {
+        text-align: left;
+        background-color: #FFFFFF;
+        color: #222222;
+        padding: 10px 14px;
+        border-radius: 15px 15px 15px 2px;
+        margin: 5px auto 5px 0;
+        max-width: 80%;
+        width: fit-content;
+        border: 1px solid #E0E0E0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .chat-time {
+        font-size: 0.75rem;
+        color: #757575;
+        margin-top: 3px;
+        display: block;
     }
 
     @media (max-width: 768px) {
@@ -144,10 +153,6 @@ st.markdown("""
         .beauty-subtitle { font-size: 0.9rem !important; margin-bottom: 1rem; }
         div[data-testid="stVerticalBlockBorderedTest"] { padding: 1.2rem !important; border-radius: 12px !important; }
         .stButton>button { padding: 0.5rem 1rem !important; font-size: 1rem !important; }
-        h2 { font-size: 1.4rem !important; }
-        h3 { font-size: 1.2rem !important; }
-        p, li, .stMarkdown { font-size: 1rem !important; }
-        a.contact-link { margin-left: 0; margin-top: 5px; margin-bottom: 5px; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -245,7 +250,7 @@ def show_job_list():
         st.divider()
         if st.button("➕ お願いを新規投稿", use_container_width=True): change_page("post_job")
         if st.button("📢 自分の募集・応募者を見る", use_container_width=True): change_page("my_posts")
-        if st.button("📋 自分の応募履歴", use_container_width=True): change_page("history")
+        if st.button("📋 自分の応募履歴とチャット", use_container_width=True): change_page("history")
         st.divider()
         if st.button("ログアウト", use_container_width=True):
             st.session_state.user = None
@@ -302,7 +307,7 @@ def show_job_list():
                     change_page("job_detail")
 
 # ==========================================
-# 3. 仕事詳細画面（★応募フォームに郵便番号検索を追加）
+# 3. 仕事詳細画面
 # ==========================================
 def show_job_detail():
     jid = st.session_state.current_job_id
@@ -332,8 +337,6 @@ def show_job_detail():
     st.markdown("## 📝 応募フォーム")
     
     with st.container(border=True):
-        
-        # ★ 応募フォーム用 郵便番号検索機能
         st.markdown("#### 📍 現住所の検索（自動入力）")
         col_z1, col_z2 = st.columns([2, 1])
         app_zip = col_z1.text_input("郵便番号（ハイフンなし）", placeholder="例: 0100951", key="app_zip")
@@ -346,7 +349,6 @@ def show_job_detail():
                         res_json = json.loads(response.read().decode("utf-8"))
                         if res_json["status"] == 200 and res_json["results"]:
                             data = res_json["results"][0]
-                            # 都道府県＋市区町村＋町域 を結合
                             st.session_state.app_address_input = f"{data['address1']}{data['address2']}{data['address3']}"
                             st.rerun()
                         else:
@@ -401,14 +403,14 @@ def show_job_detail():
                         "name_kana": app_name_kana, "address": app_address, "age": app_age, "gender": app_gender,
                         "occupation": app_occupation, "transport": app_transport, "has_license": app_license,
                         "experience": app_exp, "health": app_health, "message": app_message,
-                        "applied_at": now.strftime("%Y年%m月%d日 %H:%M")
+                        "applied_at": now.strftime("%Y年%m月%d日 %H:%M"),
+                        "chat": [] # チャット用の配列を初期化
                     }
                     db["jobs"][jid] = job
                     save_data(db)
                     
-                    # 応募成功したら入力状態をクリアしておく
                     st.session_state.app_address_input = "" 
-                    st.success("🎉 応募が完了しました！")
+                    st.success("🎉 応募が完了しました！履歴からチャットが使えます。")
                     change_page("job_list")
         
     if st.button("一覧に戻る", use_container_width=True): change_page("job_list")
@@ -438,8 +440,6 @@ def show_post_job():
         pay_amount = col_p2.number_input("謝礼・給料金額（100円区切り）", min_value=0, step=100, value=1000)
         
         st.divider()
-        
-        # 郵便番号検索機能
         st.markdown("#### 📍 勤務地の指定")
         col_z1, col_z2 = st.columns([2, 1])
         zip_code = col_z1.text_input("郵便番号（ハイフンなし）", placeholder="例: 0100951")
@@ -502,11 +502,10 @@ def show_post_job():
     if st.button("戻る", use_container_width=True): change_page("job_list")
 
 # ==========================================
-# 5. 自分の募集と応募者を見る画面（★連絡リンク追加）
+# 5. 自分の募集と応募者を見る（★投稿者側のチャット機能）
 # ==========================================
 def show_my_posts():
     st.markdown('<div class="beauty-title">📢 あなたが募集したお仕事</div>', unsafe_allow_html=True)
-    st.markdown('<div class="beauty-subtitle">応募してくれた方の情報や連絡先を確認できます</div>', unsafe_allow_html=True)
     
     my_jobs = {jid: j for jid, j in db["jobs"].items() if j.get("posted_by_phone") == st.session_state.phone}
     
@@ -527,37 +526,63 @@ def show_my_posts():
                 st.write(f"日時: {job['time']}")
                 
                 st.divider()
-                st.markdown("### 👥 応募してきた方からのメッセージ")
+                st.markdown("### 👥 応募してきた方の一覧")
                 
                 applicants = job.get("applicants", {})
                 if not applicants:
                     st.write("⚪ まだ応募者はいません。")
                 else:
-                    for phone, app in applicants.items():
+                    for app_phone, app in applicants.items():
                         with st.container(border=True):
                             st.markdown(f"#### 👤 {app['name']} さん （{app.get('age')}歳 / {app.get('gender')}）")
-                            
-                            # ★ここで連絡用のリンク（電話・SMS）を表示！
-                            contact_links = f"""
-                            📞 **電話番号（連絡先）:** {phone} 
-                            <a href='tel:{phone}' class='contact-link'>📞 電話をかける</a> 
-                            <a href='sms:{phone}' class='contact-link'>✉️ SMSを送る</a>
-                            """
-                            st.markdown(contact_links, unsafe_allow_html=True)
-                            
+                            st.write(f"📞 **連絡先:** {app_phone}")
                             st.write(f"🏠 **住所:** {app.get('address')}")
                             st.write(f"🌾 **経験:** {app.get('experience')} ｜ 🚗 **移動:** {app.get('transport')}")
-                            st.info(f"💬 **自己PR・メッセージ:**\n{app['message']}")
+                            st.info(f"💬 **最初のメッセージ:**\n{app['message']}")
+                            
+                            # 👇 【追加】投稿者（あなた）から応募者へのメッセージやり取りフォーム
+                            st.markdown("---")
+                            st.markdown(f"💬 **{app['name']} さんとの相談チャット**")
+                            
+                            # メッセージ履歴の表示
+                            chat_history = app.get("chat", [])
+                            if not chat_history:
+                                st.caption("まだチャットのやり取りはありません。")
+                            else:
+                                for msg in chat_history:
+                                    if msg["sender_phone"] == st.session_state.phone:
+                                        # 自分が送った場合
+                                        st.markdown(f'<div class="chat-bubble-me"><b>あなた</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
+                                    else:
+                                        # 応募者が送った場合
+                                        st.markdown(f'<div class="chat-bubble-other"><b>{msg["sender_name"]}さん</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
+                            
+                            # 送信フォーム
+                            with st.form(key=f"form_chat_{jid}_{app_phone}", clear_on_submit=True):
+                                text = st.text_input("メッセージを入力", placeholder="例：ご応募ありがとうございます！一度お電話可能ですか？")
+                                if st.form_submit_with_none_actions("✉️ メッセージを送信", type="primary"):
+                                    if text.strip():
+                                        if "chat" not in db["jobs"][jid]["applicants"][app_phone]:
+                                            db["jobs"][jid]["applicants"][app_phone]["chat"] = []
+                                        
+                                        db["jobs"][jid]["applicants"][app_phone]["chat"].append({
+                                            "sender_phone": st.session_state.phone,
+                                            "sender_name": st.session_state.user.get("name", "募集主"),
+                                            "text": text.strip(),
+                                            "time": get_japan_now().strftime("%m/%d %H:%M")
+                                        })
+                                        save_data(db)
+                                        st.rerun()
     
     st.write("")
     if st.button("一覧に戻る", type="primary", use_container_width=True):
         change_page("job_list")
 
 # ==========================================
-# 6. 応募履歴
+# 6. 応募履歴（★応募者側のチャット機能）
 # ==========================================
 def show_history():
-    st.markdown('<div class="beauty-title">📋 あなたの応募履歴</div>', unsafe_allow_html=True)
+    st.markdown('<div class="beauty-title">📋 あなたの応募履歴と会話</div>', unsafe_allow_html=True)
     history_jids = st.session_state.user.get("history", [])
     
     if not history_jids:
@@ -568,7 +593,43 @@ def show_history():
             with st.container(border=True):
                 if job:
                     st.success(f"✅ 応募済み: **{job['title']}**")
-                    st.caption(f"日時: {job['time']}")
+                    st.caption(f"日時: {job['time']} ｜ 投稿者: {job.get('posted_by')} さん")
+                    
+                    # 👇 【追加】応募者から投稿者（募集主）へのメッセージやり取りフォーム
+                    st.markdown("---")
+                    st.markdown("💬 **仕事の依頼主との相談チャット**")
+                    
+                    app_data = job.get("applicants", {}).get(st.session_state.phone, {})
+                    chat_history = app_data.get("chat", [])
+                    
+                    if not chat_history:
+                        st.caption("まだチャットのやり取りはありません。相手からの返信をお待ちください。")
+                    else:
+                        for msg in chat_history:
+                            if msg["sender_phone"] == st.session_state.phone:
+                                # 自分が送った場合
+                                st.markdown(f'<div class="chat-bubble-me"><b>あなた</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
+                            else:
+                                # 募集主が送った場合
+                                st.markdown(f'<div class="chat-bubble-other"><b>{msg["sender_name"]}さん（依頼主）</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
+                    
+                    # 送信フォーム
+                    with st.form(key=f"form_app_chat_{jid}", clear_on_submit=True):
+                        text = st.text_input("メッセージを入力", placeholder="例：当日の集合場所についてお伺いしたいです。")
+                        if st.form_submit_with_none_actions("✉️ メッセージを送信", type="primary"):
+                            if text.strip():
+                                if "chat" not in db["jobs"][jid]["applicants"][st.session_state.phone]:
+                                    db["jobs"][jid]["applicants"][st.session_state.phone]["chat"] = []
+                                
+                                db["jobs"][jid]["applicants"][st.session_state.phone]["chat"].append({
+                                    "sender_phone": st.session_state.phone,
+                                    "sender_name": st.session_state.user.get("name", "応募者"),
+                                    "text": text.strip(),
+                                    "time": get_japan_now().strftime("%m/%d %H:%M")
+                                })
+                                db["jobs"][jid]["applicants"][st.session_state.phone] = db["jobs"][jid]["applicants"][st.session_state.phone]
+                                save_data(db)
+                                st.rerun()
                 else:
                     st.warning("このお仕事は終了しました。")
             
@@ -607,14 +668,11 @@ def show_admin_dashboard():
         with st.container(border=True):
             st.write(f"**{job['title']}**")
             
-            # 管理者画面でも連絡先リンクを表示
             applicants = job.get("applicants", {})
             if applicants:
                 st.markdown("#### 👥 応募者")
-                for phone, app in applicants.items():
-                    st.write(f"👤 {app['name']} さん")
-                    contact_links = f"<a href='tel:{phone}' class='contact-link'>📞 電話する</a> <a href='sms:{phone}' class='contact-link'>✉️ SMS</a>"
-                    st.markdown(contact_links, unsafe_allow_html=True)
+                for app_phone, app in applicants.items():
+                    st.write(f"👤 {app['name']} さん (📞 {app_phone})")
             
             st.write("")
             if st.button("🗑️ 掲載終了・削除", key=f"del_pub_{jid}"):
