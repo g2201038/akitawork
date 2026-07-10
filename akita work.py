@@ -246,16 +246,6 @@ def show_register():
 def show_job_list():
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.user.get('name', 'ゲスト')} さん")
-        my_rating = st.session_state.user.get("rating", 0.0)
-        my_reviews_count = st.session_state.user.get("reviews_count", 0)
-        
-        if my_reviews_count > 0:
-            my_stars = "★" * int(my_rating) + "☆" * (5 - int(my_rating))
-            st.markdown(f"<span style='color:#FF9900; font-size:1.1rem;'>{my_stars}</span> **{my_rating:.1f}** <span style='color:gray; font-size:0.9rem;'>({my_reviews_count}件)</span>", unsafe_allow_html=True)
-        else:
-            st.markdown("<span style='color:gray; font-size:0.9rem;'>評価: まだありません</span>", unsafe_allow_html=True)
-
-        st.markdown(f"📍 拠点: **{st.session_state.user.get('city', '未設定')}**")
         st.markdown(f"📍 拠点: **{st.session_state.user.get('city', '未設定')}**")
         st.divider()
         if st.button("➕ お願いを新規投稿", use_container_width=True): change_page("post_job")
@@ -296,19 +286,6 @@ def show_job_list():
         for jid, job in reversed(list(available_jobs.items())):
             with st.container(border=True):
                 st.markdown(f"### 💼 {job['title']}")
-                poster_name = job.get("posted_by", "名無し")
-                poster_rating = job.get("poster_rating", 0.0)
-                poster_reviews_count = job.get("poster_reviews_count", 0)
-                
-                if poster_reviews_count > 0:
-                    stars = "★" * int(poster_rating) + "☆" * (5 - int(poster_rating))
-                    st.markdown(f"👤 **{poster_name}** さんの評価: <span style='color:#FF9900;'>{stars}</span> **{poster_rating:.1f}** <span style='font-size:0.8rem; color:gray;'>({poster_reviews_count}件)</span>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"👤 **{poster_name}** さんの評価: <span style='color:gray; font-size:0.9rem;'>まだ評価はありません</span>", unsafe_allow_html=True)
-                
-                st.write("") # 少し余白を空ける
-
-                deadline_str = "未設定"
                 
                 deadline_str = "未設定"
                 if "deadline_at" in job:
@@ -525,7 +502,7 @@ def show_post_job():
     if st.button("戻る", use_container_width=True): change_page("job_list")
 
 # ==========================================
-# 5. 自分の募集と応募者を見る（★投稿者側のチャット機能）
+# 5. 自分の募集と応募者を見る
 # ==========================================
 def show_my_posts():
     st.markdown('<div class="beauty-title">📢 あなたが募集したお仕事</div>', unsafe_allow_html=True)
@@ -546,7 +523,13 @@ def show_my_posts():
 
                 status_text = "✅ 掲載中・承認済み" if job.get("status") == "approved" else "⏳ 事務局の承認待ち"
                 st.write(f"ステータス: **{status_text}**")
-                st.write(f"日時: {job['time']}")
+                
+                # 募集内容を後から確認できるボタン（投稿者側にも追加）
+                with st.expander("📌 募集内容の詳細を確認する"):
+                    st.markdown(f"⏰ **日時:** {job['time']}")
+                    st.markdown(f"💰 **給与:** {job.get('pay', '未設定')}")
+                    st.markdown(f"🎒 **持ち物:** {job.get('items', '特になし')}")
+                    st.markdown(f"📍 **勤務地:** {job.get('loc', '未設定')}")
                 
                 st.divider()
                 st.markdown("### 👥 応募してきた方の一覧")
@@ -576,7 +559,6 @@ def show_my_posts():
                                     else:
                                         st.markdown(f'<div class="chat-bubble-other"><b>{msg["sender_name"]}さん</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
                             
-                            # ★ 修正ポイント: st.form_submit_button に直しました！
                             with st.form(key=f"form_chat_{jid}_{app_phone}", clear_on_submit=True):
                                 text = st.text_input("メッセージを入力", placeholder="例：ご応募ありがとうございます！一度お電話可能ですか？")
                                 if st.form_submit_button("✉️ メッセージを送信", type="primary"):
@@ -598,7 +580,7 @@ def show_my_posts():
         change_page("job_list")
 
 # ==========================================
-# 6. 応募履歴（★応募者側のチャット機能）
+# 6. 応募履歴（★応募した仕事の詳細を確認できるように修正）
 # ==========================================
 def show_history():
     st.markdown('<div class="beauty-title">📋 あなたの応募履歴と会話</div>', unsafe_allow_html=True)
@@ -612,8 +594,18 @@ def show_history():
             with st.container(border=True):
                 if job:
                     st.success(f"✅ 応募済み: **{job['title']}**")
-                    st.caption(f"日時: {job['time']} ｜ 投稿者: {job.get('posted_by')} さん")
+                    st.caption(f"投稿者: {job.get('posted_by')} さん")
                     
+                    # 👇 新しく追加した「詳細確認ボタン（アコーディオン）」
+                    with st.expander("📌 仕事の詳細・場所を確認する"):
+                        st.markdown(f"⏰ **日時:** {job['time']}")
+                        st.markdown(f"💰 **給与:** {job.get('pay', '未設定')}")
+                        st.markdown(f"🎒 **持ち物:** {job.get('items', '特になし')}")
+                        st.markdown(f"📍 **勤務地:** {job.get('loc', '未設定')}")
+                        if 'loc' in job:
+                            map_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(job['loc'])}"
+                            st.markdown(f"🗺️ [Googleマップで場所を開く]({map_url})")
+
                     st.markdown("---")
                     st.markdown("💬 **仕事の依頼主との相談チャット**")
                     
@@ -629,7 +621,6 @@ def show_history():
                             else:
                                 st.markdown(f'<div class="chat-bubble-other"><b>{msg["sender_name"]}さん（依頼主）</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
                     
-                    # ★ 修正ポイント: st.form_submit_button に直しました！
                     with st.form(key=f"form_app_chat_{jid}", clear_on_submit=True):
                         text = st.text_input("メッセージを入力", placeholder="例：当日の集合場所についてお伺いしたいです。")
                         if st.form_submit_button("✉️ メッセージを送信", type="primary"):
