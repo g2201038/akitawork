@@ -4,6 +4,7 @@ import uuid
 import datetime
 import os
 import urllib.parse
+import urllib.request
 
 # ==========================================
 # ★ データベース設定
@@ -33,21 +34,18 @@ st.set_page_config(page_title="あきたワーク Pro", page_icon="🌾", layout
 # ==========================================
 st.markdown("""
     <style>
-    /* どの端末でも最も読みやすいシステム標準フォントを指定 */
     html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'メイリオ', Meiryo, sans-serif !important;
         background-color: #FDF9F1 !important;
         color: #222222 !important;
     }
     
-    /* 文章の読みやすさ向上（文字サイズ、行間、字間） */
     p, li, .stMarkdown {
         font-size: 1.05rem !important;
         line-height: 1.8 !important;
         letter-spacing: 0.03em !important;
     }
     
-    /* PC向けの基本サイズ */
     .beauty-title {
         font-size: 2.5rem;
         font-weight: 700;
@@ -75,7 +73,6 @@ st.markdown("""
     h2 { color: #BF360C !important; font-weight: 700 !important; border-bottom: 2px dashed #F2C94C; padding-bottom: 5px; }
     h3 { color: #4E342E !important; font-weight: 700 !important; }
 
-    /* カードデザインの基本設定 */
     div[data-testid="stVerticalBlockBorderedTest"] {
         background-color: #ffffff !important;
         border: 1px solid #E0E0E0 !important;
@@ -87,7 +84,6 @@ st.markdown("""
         transition: transform 0.2s ease;
     }
     
-    /* ボタンデザイン */
     .stButton>button {
         border-radius: 30px !important;
         font-weight: 700 !important;
@@ -97,22 +93,15 @@ st.markdown("""
         background-color: #ffffff;
         color: #3E2723 !important;
     }
-    /* ボタン内の文字色を強制的に指定（サイドバーの白文字化を防ぐ） */
-    .stButton>button p {
-        color: #3E2723 !important; 
-    }
+    .stButton>button p { color: #3E2723 !important; }
     
     .stButton>button[kind="primary"] {
         background: linear-gradient(135deg, #F2994A, #F2C94C) !important;
         border: none !important;
         box-shadow: 0 4px 10px rgba(242, 153, 74, 0.3) !important;
     }
-    /* Primaryボタンの文字色は白にする */
-    .stButton>button[kind="primary"] p {
-        color: #ffffff !important;
-    }
+    .stButton>button[kind="primary"] p { color: #ffffff !important; }
     
-    /* フォーム入力欄 */
     .stTextInput>div>div>input, .stSelectbox>div>div>div, .stTextArea>div>div>textarea, .stNumberInput>div>div>input {
         border-radius: 8px !important;
         border: 2px solid #FFE0B2 !important;
@@ -125,16 +114,12 @@ st.markdown("""
     }
     
     section[data-testid="stSidebar"] { background-color: #4E342E !important; }
-    /* サイドバーの基本の文字を明るい色にする（ただしボタン内の文字は除く） */
     section[data-testid="stSidebar"] h3, 
     section[data-testid="stSidebar"] p:not(.stButton p), 
     section[data-testid="stSidebar"] span {
         color: #FFF8E1 !important;
     }
 
-    /* =======================================
-       📱 スマホ用レスポンシブ設定
-       ======================================= */
     @media (max-width: 768px) {
         .beauty-title { font-size: 1.7rem !important; margin-top: 0.5rem; }
         .beauty-subtitle { font-size: 0.9rem !important; margin-bottom: 1rem; }
@@ -395,24 +380,53 @@ def show_post_job():
         deadline_time = col4.time_input("締め切り時刻", value=datetime.time(8, 0))
         
         st.divider()
-        
-        # 💰 【修正点】100円区切りの入力に変更しました！
         col_p1, col_p2 = st.columns([1, 2])
         pay_type = col_p1.selectbox("給与の種類", ["日給", "時給", "1回あたり", "月給"])
         pay_amount = col_p2.number_input("謝礼・給料金額（100円区切り）", min_value=0, step=100, value=1000)
         
         st.divider()
-        user_city = st.session_state.user.get('city', '')
-        default_idx = akita_cities.index(user_city) if user_city in akita_cities else 0
-        city = st.selectbox("対象の市町村", akita_cities, index=default_idx)
+        
+        # 郵便番号検索機能
+        st.markdown("#### 📍 勤務地の指定")
+        col_z1, col_z2 = st.columns([2, 1])
+        zip_code = col_z1.text_input("郵便番号（ハイフンなし）", placeholder="例: 0100951")
+        if col_z2.button("🔍 住所を検索", use_container_width=True):
+            if zip_code:
+                url = f"https://zipcloud.ibsnet.co.jp/api/search?zipcode={zip_code}"
+                try:
+                    req = urllib.request.Request(url)
+                    with urllib.request.urlopen(req) as response:
+                        res_json = json.loads(response.read().decode("utf-8"))
+                        if res_json["status"] == 200 and res_json["results"]:
+                            result_data = res_json["results"][0]
+                            searched_city = result_data["address2"]
+                            searched_town = result_data["address3"]
+                            
+                            if searched_city in akita_cities:
+                                st.session_state.post_city = searched_city
+                            st.session_state.post_detail = searched_town
+                            st.rerun()
+                        else:
+                            st.error("郵便番号が見つかりませんでした。")
+                except Exception:
+                    st.error("住所の検索中に通信エラーが発生しました。")
+
+        # Session Stateの初期化
+        if "post_city" not in st.session_state:
+            user_city = st.session_state.user.get('city', '')
+            st.session_state.post_city = user_city if user_city in akita_cities else akita_cities[0]
+        if "post_detail" not in st.session_state:
+            st.session_state.post_detail = ""
+
+        # セレクトボックスとテキスト入力にStateを紐付け
+        city = st.selectbox("対象の市町村", akita_cities, key="post_city")
         loc_type = st.selectbox("場所のジャンル", ["個人宅", "農地・畑", "店舗", "オフィス", "公共施設", "その他"])
-        loc_detail = st.text_input("詳しい場所 (例: 山王1-1)")
+        loc_detail = st.text_input("詳しい場所 (例: 山王1-1)", key="post_detail")
         items = st.text_input("🎒 持ち物")
         st.write("")
         
         if st.button("事務局へ確認申請を提出する", type="primary", use_container_width=True):
             if title and loc_detail:
-                # 支払い金額のテキストを作成
                 pay = f"{pay_type} {pay_amount:,}円"
                 full_loc = f"秋田県{city} {loc_detail}".strip()
                 new_jid = str(uuid.uuid4())
@@ -428,6 +442,8 @@ def show_post_job():
                     "deadline_at": datetime.datetime.combine(deadline_date, deadline_time).strftime("%Y-%m-%d %H:%M:%S")
                 }
                 save_data(db)
+                # 投稿完了後にStateをリセットしておく
+                st.session_state.post_detail = "" 
                 st.success("📨 事務局へ申請しました！")
                 change_page("job_list")
             else:
