@@ -29,7 +29,7 @@ def save_data(data):
 st.set_page_config(page_title="あきたワーク Pro", page_icon="🌾", layout="centered", initial_sidebar_state="collapsed")
 
 # ==========================================
-# ✨ 新デザインCSS（見やすさ・読みやすさ特化版！）
+# ✨ 新デザインCSS
 # ==========================================
 st.markdown("""
     <style>
@@ -37,7 +37,7 @@ st.markdown("""
     html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'メイリオ', Meiryo, sans-serif !important;
         background-color: #FDF9F1 !important;
-        color: #222222 !important; /* 文字色を濃くしてコントラストをアップ */
+        color: #222222 !important;
     }
     
     /* 文章の読みやすさ向上（文字サイズ、行間、字間） */
@@ -51,7 +51,7 @@ st.markdown("""
     .beauty-title {
         font-size: 2.5rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #E65100, #F57F17); /* 文字がぼやけないよう、少し濃いグラデーションに */
+        background: linear-gradient(135deg, #E65100, #F57F17);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
@@ -78,7 +78,7 @@ st.markdown("""
     /* カードデザインの基本設定 */
     div[data-testid="stVerticalBlockBorderedTest"] {
         background-color: #ffffff !important;
-        border: 1px solid #E0E0E0 !important; /* 枠線を少しハッキリさせる */
+        border: 1px solid #E0E0E0 !important;
         border-top: 6px solid #F2994A !important;
         border-radius: 16px !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
@@ -90,21 +90,29 @@ st.markdown("""
     /* ボタンデザイン */
     .stButton>button {
         border-radius: 30px !important;
-        font-weight: 700 !important; /* ボタンの文字を太く */
+        font-weight: 700 !important;
         font-size: 1.05rem !important;
         padding: 0.6rem 1.5rem !important;
         border: 2px solid #FFCC80 !important;
         background-color: #ffffff;
         color: #3E2723 !important;
     }
+    /* ボタン内の文字色を強制的に指定（サイドバーの白文字化を防ぐ） */
+    .stButton>button p {
+        color: #3E2723 !important; 
+    }
+    
     .stButton>button[kind="primary"] {
         background: linear-gradient(135deg, #F2994A, #F2C94C) !important;
-        color: #3E2723 !important; /* ボタンの文字色を濃い茶色にして見やすく */
         border: none !important;
         box-shadow: 0 4px 10px rgba(242, 153, 74, 0.3) !important;
     }
+    /* Primaryボタンの文字色は白にする */
+    .stButton>button[kind="primary"] p {
+        color: #ffffff !important;
+    }
     
-    /* フォーム入力欄（入力しやすく文字を大きく） */
+    /* フォーム入力欄 */
     .stTextInput>div>div>input, .stSelectbox>div>div>div, .stTextArea>div>div>textarea, .stNumberInput>div>div>input {
         border-radius: 8px !important;
         border: 2px solid #FFE0B2 !important;
@@ -117,7 +125,10 @@ st.markdown("""
     }
     
     section[data-testid="stSidebar"] { background-color: #4E342E !important; }
-    section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] span {
+    /* サイドバーの基本の文字を明るい色にする（ただしボタン内の文字は除く） */
+    section[data-testid="stSidebar"] h3, 
+    section[data-testid="stSidebar"] p:not(.stButton p), 
+    section[data-testid="stSidebar"] span {
         color: #FFF8E1 !important;
     }
 
@@ -125,27 +136,13 @@ st.markdown("""
        📱 スマホ用レスポンシブ設定
        ======================================= */
     @media (max-width: 768px) {
-        .beauty-title {
-            font-size: 1.7rem !important; 
-            margin-top: 0.5rem;
-        }
-        .beauty-subtitle {
-            font-size: 0.9rem !important;
-            margin-bottom: 1rem;
-        }
-        div[data-testid="stVerticalBlockBorderedTest"] {
-            padding: 1.2rem !important; 
-            border-radius: 12px !important;
-        }
-        .stButton>button {
-            padding: 0.5rem 1rem !important; 
-            font-size: 1rem !important;
-        }
+        .beauty-title { font-size: 1.7rem !important; margin-top: 0.5rem; }
+        .beauty-subtitle { font-size: 0.9rem !important; margin-bottom: 1rem; }
+        div[data-testid="stVerticalBlockBorderedTest"] { padding: 1.2rem !important; border-radius: 12px !important; }
+        .stButton>button { padding: 0.5rem 1rem !important; font-size: 1rem !important; }
         h2 { font-size: 1.4rem !important; }
         h3 { font-size: 1.2rem !important; }
-        p, li, .stMarkdown {
-            font-size: 1rem !important; /* スマホでも小さすぎないサイズに */
-        }
+        p, li, .stMarkdown { font-size: 1rem !important; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -398,7 +395,11 @@ def show_post_job():
         deadline_time = col4.time_input("締め切り時刻", value=datetime.time(8, 0))
         
         st.divider()
-        pay = st.text_input("謝礼・給料金額 (例: 日給8,000円)")
+        
+        # 💰 【修正点】100円区切りの入力に変更しました！
+        col_p1, col_p2 = st.columns([1, 2])
+        pay_type = col_p1.selectbox("給与の種類", ["日給", "時給", "1回あたり", "月給"])
+        pay_amount = col_p2.number_input("謝礼・給料金額（100円区切り）", min_value=0, step=100, value=1000)
         
         st.divider()
         user_city = st.session_state.user.get('city', '')
@@ -410,7 +411,9 @@ def show_post_job():
         st.write("")
         
         if st.button("事務局へ確認申請を提出する", type="primary", use_container_width=True):
-            if title and pay and loc_detail:
+            if title and loc_detail:
+                # 支払い金額のテキストを作成
+                pay = f"{pay_type} {pay_amount:,}円"
                 full_loc = f"秋田県{city} {loc_detail}".strip()
                 new_jid = str(uuid.uuid4())
                 
