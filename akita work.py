@@ -29,114 +29,123 @@ def save_data(data):
 st.set_page_config(page_title="あきたワーク Pro", page_icon="🌾", layout="centered", initial_sidebar_state="collapsed")
 
 # ==========================================
-# ✨ 新デザインCSS（スマホ・PC完全対応版）
+# ✨ 新デザインCSS（見やすさ・読みやすさ特化版！）
 # ==========================================
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
-    
+    /* どの端末でも最も読みやすいシステム標準フォントを指定 */
     html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        font-family: 'Noto Sans JP', sans-serif !important;
+        font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'メイリオ', Meiryo, sans-serif !important;
         background-color: #FDF9F1 !important;
+        color: #222222 !important; /* 文字色を濃くしてコントラストをアップ */
+    }
+    
+    /* 文章の読みやすさ向上（文字サイズ、行間、字間） */
+    p, li, .stMarkdown {
+        font-size: 1.05rem !important;
+        line-height: 1.8 !important;
+        letter-spacing: 0.03em !important;
     }
     
     /* PC向けの基本サイズ */
     .beauty-title {
         font-size: 2.5rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #F2994A, #F2C94C);
+        background: linear-gradient(135deg, #E65100, #F57F17); /* 文字がぼやけないよう、少し濃いグラデーションに */
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
         margin-top: -1rem;
         margin-bottom: 0.5rem;
-        letter-spacing: 1px;
+        letter-spacing: 2px;
     }
     .beauty-subtitle {
         text-align: center;
-        color: #795548;
-        font-size: 0.95rem;
+        color: #5D4037;
+        font-size: 1rem;
         margin-bottom: 2rem;
-        font-weight: 500;
+        font-weight: 600;
     }
     
-    h1, h2, h3 { font-family: 'Noto Sans JP', sans-serif !important; }
-    h1 { color: #5D4037 !important; font-weight: 700 !important; }
-    h2 { color: #D84315 !important; font-weight: 700 !important; border-bottom: 2px dashed #F2C94C; padding-bottom: 5px; }
-    h3 { color: #4E342E !important; font-weight: 600 !important; }
+    h1, h2, h3 { 
+        font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'メイリオ', Meiryo, sans-serif !important; 
+        letter-spacing: 0.05em !important;
+    }
+    h1 { color: #3E2723 !important; font-weight: 700 !important; }
+    h2 { color: #BF360C !important; font-weight: 700 !important; border-bottom: 2px dashed #F2C94C; padding-bottom: 5px; }
+    h3 { color: #4E342E !important; font-weight: 700 !important; }
 
     /* カードデザインの基本設定 */
     div[data-testid="stVerticalBlockBorderedTest"] {
         background-color: #ffffff !important;
-        border: none !important;
-        border-top: 5px solid #F2994A !important;
-        border-radius: 20px !important;
-        box-shadow: 0 8px 20px rgba(242, 153, 74, 0.1) !important;
-        padding: 1.8rem !important; /* PC用ゆったり余白 */
+        border: 1px solid #E0E0E0 !important; /* 枠線を少しハッキリさせる */
+        border-top: 6px solid #F2994A !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+        padding: 1.8rem !important; 
         margin-bottom: 1.2rem;
         transition: transform 0.2s ease;
-    }
-    div[data-testid="stVerticalBlockBorderedTest"]:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 25px rgba(242, 153, 74, 0.15) !important;
     }
     
     /* ボタンデザイン */
     .stButton>button {
         border-radius: 30px !important;
-        font-weight: 600 !important;
-        padding: 0.5rem 1.5rem !important;
-        transition: all 0.2s ease !important;
-        border: 2px solid #FFE0B2 !important;
+        font-weight: 700 !important; /* ボタンの文字を太く */
+        font-size: 1.05rem !important;
+        padding: 0.6rem 1.5rem !important;
+        border: 2px solid #FFCC80 !important;
         background-color: #ffffff;
-        color: #5D4037;
+        color: #3E2723 !important;
     }
     .stButton>button[kind="primary"] {
         background: linear-gradient(135deg, #F2994A, #F2C94C) !important;
-        color: white !important;
+        color: #3E2723 !important; /* ボタンの文字色を濃い茶色にして見やすく */
         border: none !important;
-        box-shadow: 0 4px 15px rgba(242, 153, 74, 0.3) !important;
+        box-shadow: 0 4px 10px rgba(242, 153, 74, 0.3) !important;
     }
     
-    /* フォーム入力欄 */
+    /* フォーム入力欄（入力しやすく文字を大きく） */
     .stTextInput>div>div>input, .stSelectbox>div>div>div, .stTextArea>div>div>textarea, .stNumberInput>div>div>input {
-        border-radius: 12px !important;
-        border: 1px solid #FFE0B2 !important;
+        border-radius: 8px !important;
+        border: 2px solid #FFE0B2 !important;
         background-color: #FFFDF9 !important;
+        font-size: 1.1rem !important;
+        color: #222222 !important;
     }
     .stTextInput>div>div>input:focus, .stSelectbox>div>div>div:focus, .stTextArea>div>div>textarea:focus {
         border-color: #F2994A !important;
-        box-shadow: 0 0 0 3px rgba(242, 153, 74, 0.2) !important;
     }
     
-    section[data-testid="stSidebar"] { background-color: #5D4037 !important; }
+    section[data-testid="stSidebar"] { background-color: #4E342E !important; }
     section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] span {
-        color: #FFECB3 !important;
+        color: #FFF8E1 !important;
     }
 
     /* =======================================
-       📱 スマホ用レスポンシブ設定（ここが魔法！）
-       画面幅が768px以下の場合に適用されます
+       📱 スマホ用レスポンシブ設定
        ======================================= */
     @media (max-width: 768px) {
         .beauty-title {
-            font-size: 1.8rem !important; /* スマホではタイトルを少し小さく */
+            font-size: 1.7rem !important; 
             margin-top: 0.5rem;
         }
         .beauty-subtitle {
-            font-size: 0.8rem !important;
+            font-size: 0.9rem !important;
             margin-bottom: 1rem;
         }
         div[data-testid="stVerticalBlockBorderedTest"] {
-            padding: 1rem !important; /* スマホでは余白を減らして画面を広く使う */
-            border-radius: 15px !important;
+            padding: 1.2rem !important; 
+            border-radius: 12px !important;
         }
         .stButton>button {
-            padding: 0.4rem 1rem !important; /* ボタンもスマホで押しやすいサイズに */
-            font-size: 0.9rem !important;
+            padding: 0.5rem 1rem !important; 
+            font-size: 1rem !important;
         }
-        h2 { font-size: 1.3rem !important; }
-        h3 { font-size: 1.1rem !important; }
+        h2 { font-size: 1.4rem !important; }
+        h3 { font-size: 1.2rem !important; }
+        p, li, .stMarkdown {
+            font-size: 1rem !important; /* スマホでも小さすぎないサイズに */
+        }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -276,7 +285,7 @@ def show_job_list():
                     except: pass
                 
                 col_a, col_b = st.columns(2)
-                col_a.markdown(f"💰 **謝礼:** <span style='color:#D84315; font-weight:bold; font-size:1.1rem;'>{job['pay']}</span>", unsafe_allow_html=True)
+                col_a.markdown(f"💰 **謝礼:** <span style='color:#D84315; font-weight:bold; font-size:1.2rem;'>{job['pay']}</span>", unsafe_allow_html=True)
                 col_b.markdown(f"⏳ **締切:** {deadline_str}")
                 
                 st.markdown(f"⏰ **日時:** {job['time']}")
