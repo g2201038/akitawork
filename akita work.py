@@ -1,25 +1,32 @@
 import streamlit as st
-import requests
 import json
 import uuid
 import datetime
+import os
 
 # ==========================================
-# ★ データベース設定（Firebase）
+# ★ データベース設定（ファイル保存方式に変更！）
+# Firebaseを使わず、システム内に「data.json」を作って保存します
 # ==========================================
-FIREBASE_URL = "https://akita-work-default-rtdb.firebaseio.com/v2.json"
+DATA_FILE = "data.json"
 
-# --- データの読み書き関数 ---
 def load_data():
-    try:
-        res = requests.get(FIREBASE_URL)
-        data = res.json()
-        return data if data else {}
-    except:
-        return {}
+    # ファイルがあれば読み込み、なければ空のデータを作る
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {"users": {}, "jobs": {}}
 
 def save_data(data):
-    requests.put(FIREBASE_URL, json.dumps(data))
+    # データをファイルに書き込んで保存する
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.error(f"保存エラー: {e}")
 
 # --- アプリの基本設定 ---
 st.set_page_config(page_title="あきたワーク Pro", page_icon="🌾", layout="centered", initial_sidebar_state="collapsed")
@@ -96,6 +103,7 @@ def show_register():
                 }
                 save_data(db)
                 st.success("登録完了！ログイン画面に戻ります。")
+                # 少しだけ待たせずにすぐ切り替える
                 change_page("login")
         else:
             st.warning("すべて入力してください。")
@@ -173,7 +181,7 @@ def show_job_list():
                     change_page("job_detail")
 
 # ==========================================
-# 3. 仕事詳細画面 (★応募フォームをさらに詳細化)
+# 3. 仕事詳細画面
 # ==========================================
 def show_job_detail():
     jid = st.session_state.current_job_id
@@ -204,14 +212,14 @@ def show_job_detail():
             st.write(f"**🏢 場所の種類:** {job['loc_type']}")
         st.write(f"**📍 詳しい勤務地:** {job['loc']}")
         
-        map_url = f"https://www.google.com/maps/search/?api=1&query={requests.utils.quote(job['loc'])}"
+        import urllib.parse
+        map_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(job['loc'])}"
         st.markdown(f"🗺️ [Googleマップで詳しい場所を開く（別タブ）]({map_url})")
     
     st.write("---")
     st.subheader("📝 応募フォーム（個人情報の入力）")
     st.write("このお仕事に応募するため、以下の項目を入力してください。")
     
-    # ★ 詳細化された入力フォーム
     col_n1, col_n2 = st.columns(2)
     app_name_kana = col_n1.text_input("氏名（ふりがな）", placeholder="例: あきた たろう")
     app_address = col_n2.text_input("詳しい住所（番地・建物名）", placeholder="例: 山王1丁目1-1 〇〇ハイツ101")
@@ -258,7 +266,6 @@ def show_job_detail():
                 
                 now_str = now.strftime("%Y年%m月%d日 %H:%M")
                 
-                # ★ データベースにより詳しい情報を保存
                 job["applicants"][st.session_state.phone] = {
                     "name": st.session_state.user.get("name", "名無し"),
                     "name_kana": app_name_kana,
@@ -392,7 +399,7 @@ def show_history():
         change_page("job_list")
 
 # ==========================================
-# 6. 管理者画面 (★応募者の詳細情報をきれいに表示)
+# 6. 管理者画面
 # ==========================================
 def show_admin_dashboard():
     with st.sidebar:
@@ -464,7 +471,6 @@ def show_admin_dashboard():
                 st.write("👥 **この案件への応募者情報:**")
                 for phone, app in applicants.items():
                     with st.container(border=True):
-                        # ★ より詳細になった応募者情報を表示
                         name_kana = app.get('name_kana', '')
                         kana_display = f"（{name_kana}）" if name_kana else ""
                         st.write(f"👤 **{app['name']}** さん {kana_display} ｜ {app['gender']} / {app['age']}歳 / {app.get('occupation', '不明')}")
