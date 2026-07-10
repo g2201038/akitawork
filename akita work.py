@@ -404,7 +404,7 @@ def show_job_detail():
                         "occupation": app_occupation, "transport": app_transport, "has_license": app_license,
                         "experience": app_exp, "health": app_health, "message": app_message,
                         "applied_at": now.strftime("%Y年%m月%d日 %H:%M"),
-                        "chat": [] # チャット用の配列を初期化
+                        "chat": [] 
                     }
                     db["jobs"][jid] = job
                     save_data(db)
@@ -540,27 +540,23 @@ def show_my_posts():
                             st.write(f"🌾 **経験:** {app.get('experience')} ｜ 🚗 **移動:** {app.get('transport')}")
                             st.info(f"💬 **最初のメッセージ:**\n{app['message']}")
                             
-                            # 👇 【追加】投稿者（あなた）から応募者へのメッセージやり取りフォーム
                             st.markdown("---")
                             st.markdown(f"💬 **{app['name']} さんとの相談チャット**")
                             
-                            # メッセージ履歴の表示
                             chat_history = app.get("chat", [])
                             if not chat_history:
                                 st.caption("まだチャットのやり取りはありません。")
                             else:
                                 for msg in chat_history:
                                     if msg["sender_phone"] == st.session_state.phone:
-                                        # 自分が送った場合
                                         st.markdown(f'<div class="chat-bubble-me"><b>あなた</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
                                     else:
-                                        # 応募者が送った場合
                                         st.markdown(f'<div class="chat-bubble-other"><b>{msg["sender_name"]}さん</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
                             
-                            # 送信フォーム
+                            # ★ 修正ポイント: st.form_submit_button に直しました！
                             with st.form(key=f"form_chat_{jid}_{app_phone}", clear_on_submit=True):
                                 text = st.text_input("メッセージを入力", placeholder="例：ご応募ありがとうございます！一度お電話可能ですか？")
-                                if st.form_submit_with_none_actions("✉️ メッセージを送信", type="primary"):
+                                if st.form_submit_button("✉️ メッセージを送信", type="primary"):
                                     if text.strip():
                                         if "chat" not in db["jobs"][jid]["applicants"][app_phone]:
                                             db["jobs"][jid]["applicants"][app_phone]["chat"] = []
@@ -595,7 +591,6 @@ def show_history():
                     st.success(f"✅ 応募済み: **{job['title']}**")
                     st.caption(f"日時: {job['time']} ｜ 投稿者: {job.get('posted_by')} さん")
                     
-                    # 👇 【追加】応募者から投稿者（募集主）へのメッセージやり取りフォーム
                     st.markdown("---")
                     st.markdown("💬 **仕事の依頼主との相談チャット**")
                     
@@ -607,16 +602,14 @@ def show_history():
                     else:
                         for msg in chat_history:
                             if msg["sender_phone"] == st.session_state.phone:
-                                # 自分が送った場合
                                 st.markdown(f'<div class="chat-bubble-me"><b>あなた</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
                             else:
-                                # 募集主が送った場合
                                 st.markdown(f'<div class="chat-bubble-other"><b>{msg["sender_name"]}さん（依頼主）</b><br>{msg["text"]}<span class="chat-time">{msg["time"]}</span></div>', unsafe_allow_html=True)
                     
-                    # 送信フォーム
+                    # ★ 修正ポイント: st.form_submit_button に直しました！
                     with st.form(key=f"form_app_chat_{jid}", clear_on_submit=True):
                         text = st.text_input("メッセージを入力", placeholder="例：当日の集合場所についてお伺いしたいです。")
-                        if st.form_submit_with_none_actions("✉️ メッセージを送信", type="primary"):
+                        if st.form_submit_button("✉️ メッセージを送信", type="primary"):
                             if text.strip():
                                 if "chat" not in db["jobs"][jid]["applicants"][st.session_state.phone]:
                                     db["jobs"][jid]["applicants"][st.session_state.phone]["chat"] = []
