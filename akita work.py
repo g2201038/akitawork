@@ -27,10 +27,15 @@ def save_data(data):
     except Exception as e:
         st.error(f"保存エラー: {e}")
 
-st.set_page_config(page_title="あきたワーク Pro", page_icon="🌾", layout="centered", initial_sidebar_state="collapsed")
+# ==========================================
+# ★ 新しいアプリ設定（アイコンとアプリ名）
+# ==========================================
+#Faviconを新しいコミュニティ・シールドと稲穂に変更
+#アプリ名を「老-MEE Pro (老ミー プロ)」に変更
+st.set_page_config(page_title="老-MEE Pro (老ミー プロ)", page_icon="🛡️", layout="centered", initial_sidebar_state="collapsed")
 
 # ==========================================
-# ✨ デザインCSS
+# ✨ デザインCSS（新しい配色）
 # ==========================================
 st.markdown("""
     <style>
@@ -49,7 +54,8 @@ st.markdown("""
     .beauty-title {
         font-size: 2.5rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #E65100, #F57F17);
+        /* 新しいゴールドとシルバーのグラデーション */
+        background: linear-gradient(135deg, #FFD700, #C0C0C0);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
@@ -180,7 +186,11 @@ def get_japan_now():
 # 1. ログイン画面
 # ==========================================
 def show_login():
-    st.markdown('<div class="beauty-title">🌾 あきたワーク Pro</div>', unsafe_allow_html=True)
+    # ------------------------------------------
+    # ★ 新しいログインロゴとアプリ名
+    # ------------------------------------------
+    #ロゴを「🛡️」に変更、アプリ名を「老-MEE Pro」に変更
+    st.markdown('<div class="beauty-title">🛡️ 老-MEE Pro</div>', unsafe_allow_html=True)
     st.markdown('<div class="beauty-subtitle">地域で助け合う、新しいお仕事マッチング</div>', unsafe_allow_html=True)
     
     tab1, tab2 = st.tabs(["👤 一般ユーザーログイン", "🏢 管理者・企業ログイン"])
@@ -257,7 +267,11 @@ def show_job_list():
             st.session_state.phone = None
             change_page("login")
 
-    st.markdown('<div class="beauty-title">🌾 募集中の求人一覧</div>', unsafe_allow_html=True)
+    # ------------------------------------------
+    # ★ 新しいアプリ設定（アイコンとアプリ名）
+    # ------------------------------------------
+    #Faviconを「🛡️」に変更、アプリ名を「老-MEE Pro」に変更
+    st.markdown('<div class="beauty-title">🛡️ 募集中の求人一覧</div>', unsafe_allow_html=True)
     
     user_history = st.session_state.user.get("history", [])
     now = get_japan_now()
@@ -409,7 +423,6 @@ def show_job_detail():
                     db["jobs"][jid] = job
                     save_data(db)
                     
-                    # 👇エラー原因（st.session_state.app_address_input = ""）を削除しました
                     st.success("🎉 応募が完了しました！履歴からチャットが使えます。")
                     change_page("job_list")
         
@@ -494,7 +507,6 @@ def show_post_job():
                 }
                 save_data(db)
                 
-                # 👇エラー原因（st.session_state.post_detail = ""）を削除しました
                 st.success("📨 事務局へ申請しました！")
                 change_page("job_list")
             else:
@@ -670,21 +682,33 @@ def show_admin_dashboard():
                 save_data(db)
                 st.rerun()
 
+    st.divider()
     st.markdown(f"## 🟢 掲載中 ({len(approved_jobs)}件)")
-    for jid, job in approved_jobs.items():
+    for jid, job in reversed(list(approved_jobs.items())):
         with st.container(border=True):
-            st.write(f"**{job['title']}**")
+            st.markdown(f"### 💼 {job['title']}")
             
             applicants = job.get("applicants", {})
+            st.write(f"投稿者: {job.get('posted_by')} さん | 応募者: **{len(applicants)}名**")
+            
+            with st.expander("📌 募集内容・場所を確認する"):
+                st.markdown(f"⏰ **日時:** {job['time']}")
+                st.markdown(f"💰 **給与:** {job.get('pay', '未設定')}")
+                st.markdown(f"📍 **勤務地:** {job.get('loc', '未設定')}")
+
             if applicants:
-                st.markdown("#### 👥 応募者")
+                st.markdown("#### 👥 応募者一覧")
                 for app_phone, app in applicants.items():
-                    st.write(f"👤 {app['name']} さん (📞 {app_phone})")
+                    with st.container(border=True):
+                        st.markdown(f"👤 **{app['name']}** さん (📞 {app_phone})")
+                        st.info(f"💬 **メッセージ:**\n{app['message']}")
             
             st.write("")
-            if st.button("🗑️ 掲載終了・削除", key=f"del_pub_{jid}"):
+            col_d1, col_d2 = st.columns([1, 4])
+            if col_d1.button("🗑️ 募集終了", key=f"del_adm_{jid}", use_container_width=True):
                 del db["jobs"][jid]
                 save_data(db)
+                st.success("掲載を終了しました。")
                 st.rerun()
 
 def show_admin_users():
