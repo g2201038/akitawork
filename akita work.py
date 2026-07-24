@@ -5,6 +5,7 @@ import datetime
 import os
 import urllib.parse
 import urllib.request
+import base64
 
 # ==========================================
 # ★ データベース設定
@@ -28,58 +29,87 @@ def save_data(data):
         st.error(f"保存エラー: {e}")
 
 # ==========================================
-# ★ 新しいアプリ設定（アイコンとアプリ名）
+# ★ 画像をBase64にエンコードする関数
 # ==========================================
-#Faviconを新しいコミュニティ・シールドと稲穂に変更
-#アプリ名を「老-MEE Pro (老ミー プロ)」に変更
-st.set_page_config(page_title="老-MEE Pro (老ミー プロ)", page_icon="🛡️", layout="centered", initial_sidebar_state="collapsed")
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+# ロゴ画像のパス。Streamlitを実行するディレクトリからの相対パス。
+LOGO_FILE = "image_26.png"
+if os.path.exists(LOGO_FILE):
+    base64_logo = get_base64_of_bin_file(LOGO_FILE)
+    logo_html_raw = f'data:image/png;base64,{base64_logo}'
+else:
+    # 画像がない場合は空文字
+    logo_html_raw = ""
+    base64_logo = ""
 
 # ==========================================
-# ✨ デザインCSS（新しい配色）
+# ★ 新しいアプリ設定（アイコンとアプリ名）
 # ==========================================
-st.markdown("""
+# Faviconを新しいクマと稲穂のロゴに変更。🛡️ は削除
+st.set_page_config(page_title="老-MEE Pro (老ミー プロ)", page_icon=base64_logo, layout="centered", initial_sidebar_state="collapsed")
+
+# ==========================================
+# ✨ デザインCSS（新しい配色とロゴ表示）
+# ==========================================
+# ロゴを表示するためのCSSクラス「.app-logo-img」を追加。
+# Base64でエンコードされた画像をCSSで利用。
+css_str = f"""
     <style>
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
         font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'メイリオ', Meiryo, sans-serif !important;
         background-color: #FDF9F1 !important;
         color: #222222 !important;
-    }
+    }}
     
-    p, li, .stMarkdown {
+    p, li, .stMarkdown {{
         font-size: 1.05rem !important;
         line-height: 1.8 !important;
         letter-spacing: 0.03em !important;
-    }
+    }}
     
-    .beauty-title {
+    /* ロゴ画像を表示するためのCSS */
+    .app-logo-img {{
+        content: url('{logo_html_raw}');
+        height: 60px; /* 画像の高さに合わせて調整 */
+        width: auto;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 15px; /* テキストとの間隔 */
+    }}
+    
+    .beauty-title {{
         font-size: 2.5rem;
         font-weight: 700;
-        /* 新しいゴールドとシルバーのグラデーション */
-        background: linear-gradient(135deg, #FFD700, #C0C0C0);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
         text-align: center;
         margin-top: -1rem;
         margin-bottom: 0.5rem;
         letter-spacing: 2px;
-    }
-    .beauty-subtitle {
+        color: #3E2723 !important; /* テキストカラーを固定 */
+        display: flex; /* ロゴとテキストを並べる */
+        align-items: center;
+        justify-content: center;
+    }}
+    .beauty-subtitle {{
         text-align: center;
         color: #5D4037;
         font-size: 1rem;
         margin-bottom: 2rem;
         font-weight: 600;
-    }
+    }}
     
-    h1, h2, h3 { 
+    h1, h2, h3 {{ 
         font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'メイリオ', Meiryo, sans-serif !important; 
         letter-spacing: 0.05em !important;
-    }
-    h1 { color: #3E2723 !important; font-weight: 700 !important; }
-    h2 { color: #BF360C !important; font-weight: 700 !important; border-bottom: 2px dashed #F2C94C; padding-bottom: 5px; }
-    h3 { color: #4E342E !important; font-weight: 700 !important; }
+    }}
+    h1 {{ color: #3E2723 !important; font-weight: 700 !important; }}
+    h2 {{ color: #BF360C !important; font-weight: 700 !important; border-bottom: 2px dashed #F2C94C; padding-bottom: 5px; }}
+    h3 {{ color: #4E342E !important; font-weight: 700 !important; }}
 
-    div[data-testid="stVerticalBlockBorderedTest"] {
+    div[data-testid="stVerticalBlockBorderedTest"] {{
         background-color: #ffffff !important;
         border: 1px solid #E0E0E0 !important;
         border-top: 6px solid #F2994A !important;
@@ -88,9 +118,9 @@ st.markdown("""
         padding: 1.8rem !important; 
         margin-bottom: 1.2rem;
         transition: transform 0.2s ease;
-    }
+    }}
     
-    .stButton>button {
+    .stButton>button {{
         border-radius: 30px !important;
         font-weight: 700 !important;
         font-size: 1.05rem !important;
@@ -99,16 +129,16 @@ st.markdown("""
         background-color: #ffffff;
         color: #3E2723 !important;
     }
-    .stButton>button p { color: #3E2723 !important; }
+    .stButton>button p {{ color: #3E2723 !important; }
     
-    .stButton>button[kind="primary"] {
+    .stButton>button[kind="primary"] {{
         background: linear-gradient(135deg, #F2994A, #F2C94C) !important;
         border: none !important;
         box-shadow: 0 4px 10px rgba(242, 153, 74, 0.3) !important;
     }
-    .stButton>button[kind="primary"] p { color: #ffffff !important; }
+    .stButton>button[kind="primary"] p {{ color: #ffffff !important; }
     
-    .stTextInput>div>div>input, .stSelectbox>div>div>div, .stTextArea>div>div>textarea, .stNumberInput>div>div>input {
+    .stTextInput>div>div>input, .stSelectbox>div>div>div, .stTextArea>div>div>textarea, .stNumberInput>div>div>input {{
         border-radius: 8px !important;
         border: 2px solid #FFE0B2 !important;
         background-color: #FFFDF9 !important;
@@ -116,15 +146,15 @@ st.markdown("""
         color: #222222 !important;
     }
     
-    section[data-testid="stSidebar"] { background-color: #4E342E !important; }
+    section[data-testid="stSidebar"] {{ background-color: #4E342E !important; }
     section[data-testid="stSidebar"] h3, 
     section[data-testid="stSidebar"] p:not(.stButton p), 
-    section[data-testid="stSidebar"] span {
+    section[data-testid="stSidebar"] span {{
         color: #FFF8E1 !important;
     }
 
     /* チャット吹き出し用スタイル */
-    .chat-bubble-me {
+    .chat-bubble-me {{
         text-align: right;
         background-color: #FFE0B2;
         color: #3E2723;
@@ -135,7 +165,7 @@ st.markdown("""
         width: fit-content;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
-    .chat-bubble-other {
+    .chat-bubble-other {{
         text-align: left;
         background-color: #FFFFFF;
         color: #222222;
@@ -147,21 +177,22 @@ st.markdown("""
         border: 1px solid #E0E0E0;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
-    .chat-time {
+    .chat-time {{
         font-size: 0.75rem;
         color: #757575;
         margin-top: 3px;
         display: block;
     }
 
-    @media (max-width: 768px) {
-        .beauty-title { font-size: 1.7rem !important; margin-top: 0.5rem; }
-        .beauty-subtitle { font-size: 0.9rem !important; margin-bottom: 1rem; }
-        div[data-testid="stVerticalBlockBorderedTest"] { padding: 1.2rem !important; border-radius: 12px !important; }
-        .stButton>button { padding: 0.5rem 1rem !important; font-size: 1rem !important; }
+    @media (max-width: 768px) {{
+        .beauty-title {{ font-size: 1.7rem !important; margin-top: 0.5rem; }
+        .beauty-subtitle {{ font-size: 0.9rem !important; margin-bottom: 1rem; }
+        div[data-testid="stVerticalBlockBorderedTest"] {{ padding: 1.2rem !important; border-radius: 12px !important; }
+        .stButton>button {{ padding: 0.5rem 1rem !important; font-size: 1rem !important; }
     }
     </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(css_str, unsafe_allow_html=True)
 
 # データの初期化
 db = load_data()
@@ -189,8 +220,8 @@ def show_login():
     # ------------------------------------------
     # ★ 新しいログインロゴとアプリ名
     # ------------------------------------------
-    #ロゴを「🛡️」に変更、アプリ名を「老-MEE Pro」に変更
-    st.markdown('<div class="beauty-title">🛡️ 老-MEE Pro</div>', unsafe_allow_html=True)
+    # ロゴを盾の絵文字からロゴ画像（クマと稲穂）に変更。アプリ名を「老-MEE Pro」に
+    st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>老-MEE Pro</div>', unsafe_allow_html=True)
     st.markdown('<div class="beauty-subtitle">地域で助け合う、新しいお仕事マッチング</div>', unsafe_allow_html=True)
     
     tab1, tab2 = st.tabs(["👤 一般ユーザーログイン", "🏢 管理者・企業ログイン"])
@@ -255,6 +286,10 @@ def show_register():
 # ==========================================
 def show_job_list():
     with st.sidebar:
+        # ------------------------------------------
+        # ★ サイドバーにもロゴを追加
+        # ------------------------------------------
+        st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="{logo_html_raw}" height="60px"></div>', unsafe_allow_html=True)
         st.markdown(f"### 👤 {st.session_state.user.get('name', 'ゲスト')} さん")
         st.markdown(f"📍 拠点: **{st.session_state.user.get('city', '未設定')}**")
         st.divider()
@@ -268,10 +303,10 @@ def show_job_list():
             change_page("login")
 
     # ------------------------------------------
-    # ★ 新しいアプリ設定（アイコンとアプリ名）
+    # ★ 募集求人画面のヘッダーロゴ
     # ------------------------------------------
-    #Faviconを「🛡️」に変更、アプリ名を「老-MEE Pro」に変更
-    st.markdown('<div class="beauty-title">🛡️ 募集中の求人一覧</div>', unsafe_allow_html=True)
+    # 盾の絵文字からロゴ画像に変更。
+    st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>募集中の求人一覧</div>', unsafe_allow_html=True)
     
     user_history = st.session_state.user.get("history", [])
     now = get_japan_now()
@@ -332,7 +367,8 @@ def show_job_detail():
         if st.button("一覧に戻る"): change_page("job_list")
         return
 
-    st.markdown('<div class="beauty-title">📋 募集案件の詳細</div>', unsafe_allow_html=True)
+    # ここも盾のアイコンからロゴ画像に
+    st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>募集案件の詳細</div>', unsafe_allow_html=True)
     
     with st.container(border=True):
         st.markdown(f"## 💼 {job['title']}")
@@ -432,7 +468,7 @@ def show_job_detail():
 # 4. お願い投稿画面
 # ==========================================
 def show_post_job():
-    st.markdown('<div class="beauty-title">➕ お願いを投稿する</div>', unsafe_allow_html=True)
+    st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>お願いを投稿する</div>', unsafe_allow_html=True)
     
     with st.container(border=True):
         title = st.text_input("お仕事のタイトル・困りごと")
@@ -518,7 +554,7 @@ def show_post_job():
 # 5. 自分の募集と応募者を見る
 # ==========================================
 def show_my_posts():
-    st.markdown('<div class="beauty-title">📢 あなたが募集したお仕事</div>', unsafe_allow_html=True)
+    st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>あなたが募集したお仕事</div>', unsafe_allow_html=True)
     
     my_jobs = {jid: j for jid, j in db["jobs"].items() if j.get("posted_by_phone") == st.session_state.phone}
     
@@ -557,7 +593,7 @@ def show_my_posts():
                             st.write(f"📞 **連絡先:** {app_phone}")
                             st.write(f"🏠 **住所:** {app.get('address')}")
                             st.write(f"🌾 **経験:** {app.get('experience')} ｜ 🚗 **移動:** {app.get('transport')}")
-                            st.info(f"💬 **最初のメッセージ:**\n{app['message']}")
+                            st.info(f"💬 **メッセージ:**\n{app['message']}")
                             
                             st.markdown("---")
                             st.markdown(f"💬 **{app['name']} さんとの相談チャット**")
@@ -596,7 +632,7 @@ def show_my_posts():
 # 6. 応募履歴
 # ==========================================
 def show_history():
-    st.markdown('<div class="beauty-title">📋 あなたの応募履歴と会話</div>', unsafe_allow_html=True)
+    st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>あなたの応募履歴</div>', unsafe_allow_html=True)
     history_jids = st.session_state.user.get("history", [])
     
     if not history_jids:
@@ -660,10 +696,12 @@ def show_history():
 # ==========================================
 def show_admin_dashboard():
     with st.sidebar:
+        # 管理者画面サイドバーにもロゴを追加
+        st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="{logo_html_raw}" height="60px"></div>', unsafe_allow_html=True)
         if st.button("👥 登録会員の管理", use_container_width=True): change_page("admin_users")
         if st.button("ログアウト", use_container_width=True): change_page("login")
 
-    st.markdown('<div class="beauty-title">⚙️ 総合統括画面</div>', unsafe_allow_html=True)
+    st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>⚙️ 統括画面</div>', unsafe_allow_html=True)
     
     pending_jobs = {jid: j for jid, j in db["jobs"].items() if j.get("status") == "pending"}
     approved_jobs = {jid: j for jid, j in db["jobs"].items() if j.get("status") == "approved"}
@@ -682,33 +720,21 @@ def show_admin_dashboard():
                 save_data(db)
                 st.rerun()
 
-    st.divider()
     st.markdown(f"## 🟢 掲載中 ({len(approved_jobs)}件)")
-    for jid, job in reversed(list(approved_jobs.items())):
+    for jid, job in approved_jobs.items():
         with st.container(border=True):
-            st.markdown(f"### 💼 {job['title']}")
+            st.write(f"**{job['title']}**")
             
             applicants = job.get("applicants", {})
-            st.write(f"投稿者: {job.get('posted_by')} さん | 応募者: **{len(applicants)}名**")
-            
-            with st.expander("📌 募集内容・場所を確認する"):
-                st.markdown(f"⏰ **日時:** {job['time']}")
-                st.markdown(f"💰 **給与:** {job.get('pay', '未設定')}")
-                st.markdown(f"📍 **勤務地:** {job.get('loc', '未設定')}")
-
             if applicants:
-                st.markdown("#### 👥 応募者一覧")
+                st.markdown("#### 👥 応募者")
                 for app_phone, app in applicants.items():
-                    with st.container(border=True):
-                        st.markdown(f"👤 **{app['name']}** さん (📞 {app_phone})")
-                        st.info(f"💬 **メッセージ:**\n{app['message']}")
+                    st.write(f"👤 {app['name']} さん (📞 {app_phone})")
             
             st.write("")
-            col_d1, col_d2 = st.columns([1, 4])
-            if col_d1.button("🗑️ 募集終了", key=f"del_adm_{jid}", use_container_width=True):
+            if st.button("🗑️ 掲載終了・削除", key=f"del_pub_{jid}"):
                 del db["jobs"][jid]
                 save_data(db)
-                st.success("掲載を終了しました。")
                 st.rerun()
 
 def show_admin_users():
