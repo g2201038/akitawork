@@ -36,27 +36,28 @@ def get_base64_of_bin_file(bin_file):
         data = f.read()
     return base64.b64encode(data).decode()
 
-# ロゴ画像のパス。Streamlitを実行するディレクトリからの相対パス。
+# ロゴ画像のパス（Streamlitを実行するディレクトリからの相対パス）
 LOGO_FILE = "image_26.png"
 if os.path.exists(LOGO_FILE):
     base64_logo = get_base64_of_bin_file(LOGO_FILE)
     logo_html_raw = f'data:image/png;base64,{base64_logo}'
 else:
-    # 画像がない場合は空文字
     logo_html_raw = ""
     base64_logo = ""
 
 # ==========================================
-# ★ 新しいアプリ設定（アイコンとアプリ名）
+# ★ アプリ設定（Faviconとタイトル）
 # ==========================================
-# Faviconを新しいクマと稲穂のロゴに変更。🛡️ は削除
-st.set_page_config(page_title="老-MEE Pro (老ミー プロ)", page_icon=base64_logo, layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="老-MEE Pro (老ミー プロ)",
+    page_icon=base64_logo if base64_logo else "🌾",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
 # ==========================================
-# ✨ デザインCSS（新しい配色とロゴ表示）
+# ✨ デザインCSS（ロゴ適用・配色設定）
 # ==========================================
-# ロゴを表示するためのCSSクラス「.app-logo-img」を追加。
-# Base64でエンコードされた画像をCSSで利用。
 css_str = f"""
     <style>
     html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
@@ -74,11 +75,11 @@ css_str = f"""
     /* ロゴ画像を表示するためのCSS */
     .app-logo-img {{
         content: url('{logo_html_raw}');
-        height: 60px; /* 画像の高さに合わせて調整 */
+        height: 60px;
         width: auto;
         display: inline-block;
         vertical-align: middle;
-        margin-right: 15px; /* テキストとの間隔 */
+        margin-right: 15px;
     }}
     
     .beauty-title {{
@@ -88,11 +89,12 @@ css_str = f"""
         margin-top: -1rem;
         margin-bottom: 0.5rem;
         letter-spacing: 2px;
-        color: #3E2723 !important; /* テキストカラーを固定 */
-        display: flex; /* ロゴとテキストを並べる */
+        color: #3E2723 !important;
+        display: flex;
         align-items: center;
         justify-content: center;
     }}
+    
     .beauty-subtitle {{
         text-align: center;
         color: #5D4037;
@@ -128,15 +130,17 @@ css_str = f"""
         border: 2px solid #FFCC80 !important;
         background-color: #ffffff;
         color: #3E2723 !important;
-    }
-    .stButton>button p {{ color: #3E2723 !important; }
+    }}
+    
+    .stButton>button p {{ color: #3E2723 !important; }}
     
     .stButton>button[kind="primary"] {{
         background: linear-gradient(135deg, #F2994A, #F2C94C) !important;
         border: none !important;
         box-shadow: 0 4px 10px rgba(242, 153, 74, 0.3) !important;
-    }
-    .stButton>button[kind="primary"] p {{ color: #ffffff !important; }
+    }}
+    
+    .stButton>button[kind="primary"] p {{ color: #ffffff !important; }}
     
     .stTextInput>div>div>input, .stSelectbox>div>div>div, .stTextArea>div>div>textarea, .stNumberInput>div>div>input {{
         border-radius: 8px !important;
@@ -144,16 +148,15 @@ css_str = f"""
         background-color: #FFFDF9 !important;
         font-size: 1.1rem !important;
         color: #222222 !important;
-    }
+    }}
     
-    section[data-testid="stSidebar"] {{ background-color: #4E342E !important; }
+    section[data-testid="stSidebar"] {{ background-color: #4E342E !important; }}
     section[data-testid="stSidebar"] h3, 
     section[data-testid="stSidebar"] p:not(.stButton p), 
     section[data-testid="stSidebar"] span {{
         color: #FFF8E1 !important;
-    }
+    }}
 
-    /* チャット吹き出し用スタイル */
     .chat-bubble-me {{
         text-align: right;
         background-color: #FFE0B2;
@@ -164,7 +167,8 @@ css_str = f"""
         max-width: 80%;
         width: fit-content;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
+    }}
+    
     .chat-bubble-other {{
         text-align: left;
         background-color: #FFFFFF;
@@ -176,20 +180,21 @@ css_str = f"""
         width: fit-content;
         border: 1px solid #E0E0E0;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
+    }}
+    
     .chat-time {{
         font-size: 0.75rem;
         color: #757575;
         margin-top: 3px;
         display: block;
-    }
+    }}
 
     @media (max-width: 768px) {{
-        .beauty-title {{ font-size: 1.7rem !important; margin-top: 0.5rem; }
-        .beauty-subtitle {{ font-size: 0.9rem !important; margin-bottom: 1rem; }
-        div[data-testid="stVerticalBlockBorderedTest"] {{ padding: 1.2rem !important; border-radius: 12px !important; }
-        .stButton>button {{ padding: 0.5rem 1rem !important; font-size: 1rem !important; }
-    }
+        .beauty-title {{ font-size: 1.7rem !important; margin-top: 0.5rem; }}
+        .beauty-subtitle {{ font-size: 0.9rem !important; margin-bottom: 1rem; }}
+        div[data-testid="stVerticalBlockBorderedTest"] {{ padding: 1.2rem !important; border-radius: 12px !important; }}
+        .stButton>button {{ padding: 0.5rem 1rem !important; font-size: 1rem !important; }}
+    }}
     </style>
 """
 st.markdown(css_str, unsafe_allow_html=True)
@@ -217,10 +222,6 @@ def get_japan_now():
 # 1. ログイン画面
 # ==========================================
 def show_login():
-    # ------------------------------------------
-    # ★ 新しいログインロゴとアプリ名
-    # ------------------------------------------
-    # ロゴを盾の絵文字からロゴ画像（クマと稲穂）に変更。アプリ名を「老-MEE Pro」に
     st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>老-MEE Pro</div>', unsafe_allow_html=True)
     st.markdown('<div class="beauty-subtitle">地域で助け合う、新しいお仕事マッチング</div>', unsafe_allow_html=True)
     
@@ -286,10 +287,8 @@ def show_register():
 # ==========================================
 def show_job_list():
     with st.sidebar:
-        # ------------------------------------------
-        # ★ サイドバーにもロゴを追加
-        # ------------------------------------------
-        st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="{logo_html_raw}" height="60px"></div>', unsafe_allow_html=True)
+        if logo_html_raw:
+            st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="{logo_html_raw}" height="60px"></div>', unsafe_allow_html=True)
         st.markdown(f"### 👤 {st.session_state.user.get('name', 'ゲスト')} さん")
         st.markdown(f"📍 拠点: **{st.session_state.user.get('city', '未設定')}**")
         st.divider()
@@ -302,10 +301,6 @@ def show_job_list():
             st.session_state.phone = None
             change_page("login")
 
-    # ------------------------------------------
-    # ★ 募集求人画面のヘッダーロゴ
-    # ------------------------------------------
-    # 盾の絵文字からロゴ画像に変更。
     st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>募集中の求人一覧</div>', unsafe_allow_html=True)
     
     user_history = st.session_state.user.get("history", [])
@@ -367,7 +362,6 @@ def show_job_detail():
         if st.button("一覧に戻る"): change_page("job_list")
         return
 
-    # ここも盾のアイコンからロゴ画像に
     st.markdown('<div class="beauty-title"><div class="app-logo-img"></div>募集案件の詳細</div>', unsafe_allow_html=True)
     
     with st.container(border=True):
@@ -573,7 +567,6 @@ def show_my_posts():
                 status_text = "✅ 掲載中・承認済み" if job.get("status") == "approved" else "⏳ 事務局の承認待ち"
                 st.write(f"ステータス: **{status_text}**")
                 
-                # 募集内容を後から確認できるボタン
                 with st.expander("📌 募集内容の詳細を確認する"):
                     st.markdown(f"⏰ **日時:** {job['time']}")
                     st.markdown(f"💰 **給与:** {job.get('pay', '未設定')}")
@@ -696,8 +689,8 @@ def show_history():
 # ==========================================
 def show_admin_dashboard():
     with st.sidebar:
-        # 管理者画面サイドバーにもロゴを追加
-        st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="{logo_html_raw}" height="60px"></div>', unsafe_allow_html=True)
+        if logo_html_raw:
+            st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="{logo_html_raw}" height="60px"></div>', unsafe_allow_html=True)
         if st.button("👥 登録会員の管理", use_container_width=True): change_page("admin_users")
         if st.button("ログアウト", use_container_width=True): change_page("login")
 
